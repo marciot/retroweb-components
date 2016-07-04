@@ -1,6 +1,6 @@
 <!--
-RetroWeb Browser
-Copyright (C) 2014 Marcio Teixeira
+RetroWeb Components
+Copyright (C) 2016 Marcio Teixeira
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -133,13 +133,13 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 	</style>
 
 	<div id="popup-rom-missing" class="popup">
-		<img src="/ui-artwork/rom.png" class="small-icon">
+		<img src="/artwork/rom.png" class="small-icon">
 		<p>This computer cannot start without a valid ROM file.</p>
 		<input type="button" value="Select ROM file..." id="select-rom-btn">
 	</div>
 
 	<div id="popup-need-boot-media" class="popup">
-		<img src="/ui-artwork/sunny.png" class="small-icon">
+		<img src="/artwork/sunny.png" class="small-icon">
 		<h1>This computer needs a boot disk!<br>Follow the green dots!</h1>
 	</div>
 
@@ -163,7 +163,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 	</div>
 
 	<div id="popup-mac-eject-disk" class="popup">
-		<img src="/ui-artwork/drag-to-trash.png">
+		<img src="/artwork/drag-to-trash.png">
 		<div>
 			<h1>Ejecting disks on the Macintosh</h1>
 			<p>
@@ -189,6 +189,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 		var t = emulatorPopupsImportDoc.getElementById('EmulatorPopupsTemplate');
 		var clone = document.importNode(t.content, true);
 		var shadowRoot = this.createShadowRoot();
+		if(typeof retroWebComponentsPath !== 'undefined') {
+			$(clone).find("img").each(function(i,e) {e.src = retroWebComponentsPath + e.getAttribute('src');});
+		}
 		shadowRoot.appendChild(clone);
 
 		// Initialize handler for dialog boxes

@@ -22,10 +22,10 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 		.horizontalExpandAndCenter {
 			position:				relative;
 			padding:				0px;
-			
+
 			width:					100%;
 			height:					100%;
-			
+
 			max-width:				1500px;
 
 			margin-left:			auto;
@@ -86,14 +86,13 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 		height:		100%;
 		width:		100%;
 	}
-	
+
 	emulator-skin {
 		width: 100%;
 	}
 </style>
 
 <script>
-	var skinsPath	= "/components/skins";
 	var skinLibrary = [
 		"amiga500", "apple2e", "atari1040st",  "commodore64c", "ibm5160",
 		"macplus",   "rc759",  "trs80-model1", "xerox-star"
@@ -127,7 +126,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 	};
 
 	EmulatorSkinProto.loadByName = function(name) {
-		$(this.shadowRoot).find("#skin-resources").load(skinsPath + '/' + name + ".css", null,
+		var skinPath = '/skins/' + name + ".css";
+		if(typeof retroWebComponentsPath !== 'undefined') {
+			skinPath = retroWebComponentsPath + skinPath;
+		}
+		$(this.shadowRoot).find("#skin-resources").load(skinPath, null,
 			function(response, status, xhr) {
 				if (status == "error") {
 					alert("Unable to find the skins, please make sure the variable skinsPath is set correctly");

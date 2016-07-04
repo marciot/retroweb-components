@@ -1,6 +1,6 @@
 <!--
-RetroWeb Browser
-Copyright (C) 2014 Marcio Teixeira
+RetroWeb Components
+Copyright (C) 2016 Marcio Teixeira
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -23,7 +23,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 			width:		100%;
 			height:		100%;
 		}
-		
+
 		svg path {
 			fill:		var(--path-color, black);
 		}
@@ -39,28 +39,33 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 <script>
 	/* Creates an inline SVG so that it can be styled. Based on ideas presented here:
 	http://stackoverflow.com/questions/11978995/how-to-change-color-of-svg-image-using-css-jquery-svg-image-replacement */
-	
+
 	/* Info about scaling SVGs
 	 *   https://css-tricks.com/scale-svg/
 	 */
-		
+
 	// The following is requires for the webcomponents polyfill
     document._currentScript = document._currentScript || document.currentScript;
     
 	// importDoc references this import's document
-    	
+
     var inlineSVGImportDoc = document._currentScript.ownerDocument;
-    	
+
     var InlineSVGProto = Object.create(HTMLElement.prototype);
 
 	InlineSVGProto.createdCallback = function() {
 		var t = inlineSVGImportDoc.getElementById('InlineSVGTemplate');
-      	var clone = document.importNode(t.content, true);
-      	var shadowRoot = this.createShadowRoot();
+		var clone = document.importNode(t.content, true);
+		var shadowRoot = this.createShadowRoot();
 		shadowRoot.appendChild(clone);
-		
+
+		var src = this.getAttribute('src');
+		if(typeof retroWebComponentsPath !== 'undefined') {
+			src = src.replace("$RETROWEB_COMPONENTS_PATH", retroWebComponentsPath);
+		}
+
 		var me = this;
-		jQuery.get(this.getAttribute('src'), function(data) {
+		jQuery.get(src, function(data) {
 			// Get the SVG tag, ignore the rest
 			var $svg = $(data).find('svg');
 
@@ -74,8 +79,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 			shadowRoot.innerHTML += $svg[0].outerHTML;
 		}, 'xml');
 	};
-	
+
 	Object.defineProperty(InlineSVGProto, "src", {writable: true});
-	
+
 	var InlineSVG = document.registerElement('inline-svg', {prototype: InlineSVGProto});
 </script>

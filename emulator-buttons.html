@@ -1,6 +1,6 @@
 <!--
-RetroWeb Browser
-Copyright (C) 2014 Marcio Teixeira
+RetroWeb Components
+Copyright (C) 2016 Marcio Teixeira
 
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
@@ -110,14 +110,14 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 	<div id="screen-container">
 		<content id="screen"></content>
 
-		<inline-svg src="/ui-artwork/appbar.magnify.minus.svg" id="zoomOutBtn" class="full-screen-controls">></inline-svg>
-		<inline-svg src="/ui-artwork/appbar.power.svg"         id="powerBtn2"  class="full-screen-controls"></inline-svg>
+		<inline-svg src="$RETROWEB_COMPONENTS_PATH/artwork/appbar.magnify.minus.svg" id="zoomOutBtn" class="full-screen-controls">></inline-svg>
+		<inline-svg src="$RETROWEB_COMPONENTS_PATH/artwork/appbar.power.svg"         id="powerBtn2"  class="full-screen-controls"></inline-svg>
 
 		<div id="screen-overlay-controls">
 			<div id="controls">
-				<inline-svg src="/ui-artwork/appbar.magnify.add.svg"    id="zoomInBtn"   class="roundedBtn"></inline-svg>
-				<inline-svg src="/ui-artwork/appbar.cursor.default.svg" id="interactBtn" class="roundedBtn"></inline-svg>
-				<inline-svg src="/ui-artwork/appbar.power.svg"          id="powerBtn"    class="roundedBtn"></inline-svg>
+				<inline-svg src="$RETROWEB_COMPONENTS_PATH/artwork/appbar.magnify.add.svg"    id="zoomInBtn"   class="roundedBtn"></inline-svg>
+				<inline-svg src="$RETROWEB_COMPONENTS_PATH/artwork/appbar.cursor.default.svg" id="interactBtn" class="roundedBtn"></inline-svg>
+				<inline-svg src="$RETROWEB_COMPONENTS_PATH/artwork/appbar.power.svg"          id="powerBtn"    class="roundedBtn"></inline-svg>
 			</div>
 		</div>
 	</div>
@@ -138,9 +138,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
     document._currentScript = document._currentScript || document.currentScript;
     
 	// importDoc references this import's document
-    	
+
     var emulatorButtonsImportDoc = document._currentScript.ownerDocument;
-    	
+
     var EmulatorButtonsProto = Object.create(HTMLElement.prototype);
 
 	EmulatorButtonsProto.createdCallback = function() {

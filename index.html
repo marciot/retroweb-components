@@ -2,6 +2,8 @@
 	<head>
 	    <script type="text/javascript" src="https://code.jquery.com/jquery-3.0.0.min.js"></script>
 		<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/webcomponentsjs/0.7.22/webcomponents.min.js"></script>
+
+		<link rel="import" href="/components/find-base-dir.html">
 		<link rel="import" href="/components/inline-svg.html">
 		<link rel="import" href="/components/animated-zoom.html">
 		<link rel="import" href="/components/emulator-buttons.html">
@@ -9,18 +11,18 @@
 		<link rel="import" href="/components/emulator-skin.html">
 		<link rel="import" href="/components/file-icons.html">
 		<style>
-			
+
 			body {
 				font-family: 		"Gill Sans", "Gill Sans MT", Calibri, sans-serif;
 				background-color: 	#eef;
 			}
-			
+
 			body {
 				padding:			3em;
 				width:				auto;
 				font-size:			200%;
 			}
-			
+
 			body>>h1 {
 				text-align:			center;
 				margin:				2em 0;
@@ -35,7 +37,7 @@
 			.zoomable, .demo {
 				position:			relative;
 				display:			block;
-				
+
 				width: 				512px;
 				height:				342px;
 				
@@ -45,7 +47,7 @@
 			.zoomable .screen {
 				position:			relative;
 				display:			inline;
-				
+
 				width:				auto;
 				height:				100%;
 				max-width:			100%;
@@ -67,7 +69,7 @@
 			inline-svg {
 				--path-color:		darkGray;
 			}
-			
+
 			#testSvg1:hover {
 				--path-color:		red;
 			}
@@ -138,13 +140,13 @@
 		<p>
 		This library was created by splitting up the functionality of the <a href="http://retroweb.maclab.org">RetroWeb Vintage Computer Museum</a> into smaller stand-alone components. These components are meant to be simple enough to be incorporated into other websites or used with other JavaScript emulators.
 		</p>
-		
+
 		<table>
 
 			<tr>
 				<th>
-					<inline-svg src="/ui-artwork/appbar.magnify.add.svg"   id="testSvg1"></inline-svg>
-					<inline-svg src="/ui-artwork/appbar.magnify.minus.svg" id="testSvg2"></inline-svg>
+					<inline-svg src="artwork/appbar.magnify.add.svg"   id="testSvg1"></inline-svg>
+					<inline-svg src="artwork/appbar.magnify.minus.svg" id="testSvg2"></inline-svg>
 				</th>
 				<td>
 					<h2>inline-svg</h2>
@@ -180,7 +182,7 @@
 					<div id="skin-demo-outer">
 						<div id="skin-demo">
 							<emulator-skin id="test-skins" name="macplus">
-								<img id="screen-area" src="screen.png" class="screen">
+								<img id="screen-area" src="artwork/screen.png" class="screen">
 							</emulator-skin>
 						</div>
 					</div>
@@ -200,7 +202,7 @@
 </pre>
 
 					<button id="next-skin">Show next skin</button>
-					
+
 					<h3>Element Attributes:</h3>
 					<dl>
 						<dt>name</dt>
@@ -208,7 +210,7 @@
 						<dt>flush</dt>
 						<dd>Set to "right" to push the emulator's screen to the right side of the page</dd>
 					</dl>
-					
+
 					<h3>JavaScript Methods:</h3>
 					<dl>
 						<dt>loadByName(name)</dt>
@@ -226,7 +228,7 @@
 					<br>
 					<div class="zoomable">
 						<animated-zoom class="zoomable" id="animatedZoomDemo">
-							<img src="screen.png" class="screen" width=512 height=342>
+							<img src="artwork/screen.png" class="screen" width=512 height=342>
 						</animated-zoom>
 					</div>
 				</th>
@@ -266,7 +268,7 @@
 					<br>
 					<animated-zoom class="zoomable">
 						<emulator-buttons id="emulatorButtonsDemo">
-							<img src="screen.png" class="screen" width=512 height=342>
+							<img src="artwork/screen.png" class="screen" width=512 height=342>
 						</emulator-buttons>
 					</animated-zoom>
 				</th>
@@ -307,7 +309,7 @@
 				<th>
 					<br>
 					<div class="demo">
-						<img src="screen.png" id="test-popup-img" width=512 height=342>
+						<img src="artwork/screen.png" id="test-popup-img" width=512 height=342>
 						<emulator-popups id="test-popups">
 						</emulator-popups>
 					</div>
@@ -326,9 +328,9 @@
 					<p>
 					The various dialog boxes can be triggered by JavaScript and will provide results via callbacks.
 					</p>
-					
+
 					<button id="next-popup">Show next popup</button>
-					
+
 					<h3>JavaScript Methods:</h3>
 					<dl>
 						<dt>setVisibility(named, visibility)</dt>
@@ -432,7 +434,7 @@
 					$("#zoom-btn").click(function() {el.toggleZoom();});
 					$(el).click(function() {el.zoomOut();});
 				}
-				
+
 				function emulatorSkinsDemo() {
 					var skin	= document.getElementById("test-skins");
 					makeIteratorButton(
@@ -448,7 +450,7 @@
 					var el = document.getElementById("emulatorButtonsDemo");
 					el.setRestartAction(function() {alert("You clicked the restart button");});
 				}
-				
+
 				function emulatorPopupDemo() {
 					var popups		= document.getElementById("test-popups");
 					makeIteratorButton(
@@ -460,7 +462,7 @@
 						}
 					);
 				}
-				
+
 				function makeIteratorButton(btn, list, callback) {
 					var which		= 0;
 					function chooseNext() {
@@ -473,7 +475,7 @@
 					}
 					$(btn).click(chooseNext);
 				}
-				
+
 				emulatorSkinsDemo();
 				animatedZoomDemo();
 				emulatorButtonsDemo();
