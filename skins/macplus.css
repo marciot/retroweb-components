@@ -1,7 +1,7 @@
 /* This is the background. It should be scaled such that the emulator's screen
  * fits inside the screen region */
 .background {
-	background-image:		url(/components/skins/macplus.jpg);
+	background-image:		url(/skins/macplus.jpg);
 	width:					1590px;
 	height:					1208px;
 }
