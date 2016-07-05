@@ -1,7 +1,7 @@
 /* See "macplus.css" for documentation */
 
 .background {
-	background-image:		url(/skins/apple2e.jpg);
+	background-image:		url('$RETROWEB_COMPONENTS_PATH/skins/apple2e.jpg');
 	width:					1003px;
 	height:					1101px;
 }

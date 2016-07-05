@@ -126,15 +126,17 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 	};
 
 	EmulatorSkinProto.loadByName = function(name) {
+		var me = this;
 		var skinPath = '/skins/' + name + ".css";
 		if(typeof retroWebComponentsPath !== 'undefined') {
 			skinPath = retroWebComponentsPath + skinPath;
 		}
-		$(this.shadowRoot).find("#skin-resources").load(skinPath, null,
-			function(response, status, xhr) {
-				if (status == "error") {
-					alert("Unable to find the skins, please make sure the variable skinsPath is set correctly");
+		$.get(skinPath,
+			function(styles) {
+				if(typeof retroWebComponentsPath !== 'undefined') {
+					styles = styles.replace(/\$RETROWEB_COMPONENTS_PATH/g, retroWebComponentsPath);
 				}
+				$(me.shadowRoot).find("#skin-resources").html(styles);
 			}
 		);
 	}
