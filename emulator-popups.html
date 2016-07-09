@@ -184,21 +184,29 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 		var t = thisDoc.getElementById('EmulatorPopupsTemplate');
 		var clone = document.importNode(t.content, true);
 		var shadowRoot = this.createShadowRoot();
-		if(typeof retroWebComponentsPath !== 'undefined') {
-			$(clone).find("img").each(function(i,e) {e.src = retroWebComponentsPath + e.getAttribute('src');});
-		}
 		shadowRoot.appendChild(clone);
+		if(typeof retroWebComponentsPath !== 'undefined') {
+			/* Need to prefix the modify the path to the IMG elements to
+			 * be relative to the components dir */
+			var els = this.shadowRoot.querySelectorAll("img");
+			for(var i = 0; i < els.length; i++) {
+				els[i].src = retroWebComponentsPath + els[i].getAttribute('src');
+			};
+		}
 
 		// Initialize handler for dialog boxes
 		var popups = this.popups = new PopupManager(shadowRoot);
 
-		function closeButtonAction(popupId, buttonSelector) {
-			$(shadowRoot).find('#'+popupId).find(buttonSelector).click(
-				function() {popups.setVisibility(popupId, false);});
+		var me = this;
+		function closeButtonAction(popupId, buttonId) {
+			var els = me.shadowRoot.querySelectorAll('#'+ popupId + ' #' + buttonId);
+			for(var i = 0; i < els.length; i++) {
+				els[i].addEventListener('click', function() {popups.setVisibility(popupId, false);});
+			};
 		}
 
-		closeButtonAction("popup-mac-eject-disk", "#mac-eject-ok-btn");
-		closeButtonAction("popup-uploader",       "#uploader-cancel-btn");
+		closeButtonAction("popup-mac-eject-disk", "mac-eject-ok-btn");
+		closeButtonAction("popup-uploader",       "uploader-cancel-btn");
 	}
 
     EmulatorPopupsProto.setVisibility = function(id, state) {
@@ -206,7 +214,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 	};
 
     EmulatorPopupsProto.setStatus = function(status) {
-		$(this.shadowRoot).find("#status-text").innerHTML = status;
+		this.shadowRoot.querySelector("#status-text").innerHTML = status;
 	};
 
 	EmulatorPopupsProto.askForFile = function(prompt, callback) {
@@ -215,11 +223,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 			alert("Your web browser does not support this feature");
 			return;
 		}
-		$(this.shadowRoot).find('#uploader-text').html(prompt);
-		$(this.shadowRoot).find('#uploader-ok-btn').click(function(evt) {
-			this.setVisibility("popup-uploader", false);
-			var file = $(this.shadowRoot).find('#uploader-file')[0].files[0];
-			callback(file);
+		var me = this;
+		this.shadowRoot.querySelector('#uploader-text').innerHTML = prompt;
+		this.shadowRoot.querySelector('#uploader-ok-btn').addEventListener('click', function(evt) {
+			me.setVisibility("popup-uploader", false);
+			callback(me.shadowRoot.querySelector('#uploader-file').files[0]);
 			return false;
 		});
 		this.setVisibility("popup-uploader", true);
@@ -227,16 +235,25 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 	EmulatorPopupsProto.askForRom = function(callback) {
 		var me = this;
-		$(this.shadowRoot).find('#select-rom-btn').click(
-			function() {me.askForFile("Select ROM image", callback);}
+		this.shadowRoot.querySelector('#select-rom-btn').addEventListener('click',
+			function() {
+				me.askForFile("Select ROM image",
+					function(file) {
+						me.setVisibility("popup-rom-missing", false);
+						callback(file);
+					}
+				)
+			}
 		);
+		this.setVisibility("popup-rom-missing", true);
 	}
 
 	EmulatorPopupsProto.getNames = function() {
 		var popups = [];
-		$(this.shadowRoot).find('.popup').each(
-			function(i, el) {popups.push(el.id);}
-		);
+		var els = this.shadowRoot.querySelectorAll('.popup');
+		for(var i = 0; i < els.length; i++) {
+			popups.push(els[i].id);
+		}
 		return popups;
 	}
 
@@ -245,14 +262,18 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 	/* This object manages popup dialog boxes. Since our pop-up boxes are translucent,
 	 * this object ensures that only the topmost popup box is visible at once.
 	 */
-	class PopupManager {
+	var PopupManager = class {
 		constructor(shadowRoot) {
 			this.popupBoxes     = [];
-			this.$visibleElement = null;
-			this.$shadowRoot     = $(shadowRoot);
+			this.visibleElement = null;
+			this.shadowRoot     = shadowRoot;
 
 			var me = this;
-			this.$shadowRoot.find(".popup").hide().each(function(i,el) {me.add(el);});
+			var els = this.shadowRoot.querySelectorAll(".popup");
+			for(var i = 0; i < els.length; i++) {
+				els[i].style.display = 'none';
+				me.add(els[i]);
+			}
 		}
 
 		add(el) {
@@ -263,15 +284,15 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 		}
 
 		setVisibleElement(id) {
-			var $el = this.$shadowRoot.find("#"+id);
-			if(this.$visibleElement != $el) {
-				if(this.$visibleElement) {
-					this.$visibleElement.hide();
+			var el = this.shadowRoot.querySelector("#"+id);
+			if(this.visibleElement != el) {
+				if(this.visibleElement) {
+					this.visibleElement.style.display = 'none';
 				}
-				if($el) {
-					$el.show();
+				if(el) {
+					el.style.display = '';
 				}
-				this.$visibleElement = $el;
+				this.visibleElement = el;
 			}
 		}
 

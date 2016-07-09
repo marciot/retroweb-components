@@ -330,6 +330,7 @@
 					</p>
 
 					<button id="next-popup">Show next popup</button>
+					<button id="request-rom">Ask for ROM</button>
 
 					<h3>JavaScript Methods:</h3>
 					<dl>
@@ -461,6 +462,8 @@
 							popups.setVisibility(current, true);
 						}
 					);
+					document.querySelector("#request-rom").addEventListener('click', function() {
+						popups.askForRom(function(file) {if(file) alert("You uploaded " + file.name);});});
 				}
 
 				function makeIteratorButton(btn, list, callback) {
