@@ -144,16 +144,17 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 		var shadowRoot = this.createShadowRoot();
 		shadowRoot.appendChild(clone);
 
+		var me = this;
 		/* Proceed to set up events */
 		function redirectEventToCanvas(e) {
 			/* Reference: 
 			   http://stackoverflow.com/questions/11974262/how-to-clone-or-re-dispatch-dom-events
 			  */
 			var distributedNodes = $(shadowRoot).find("#screen")[0].getDistributedNodes();
-			var canvas = $(distributedNodes).filter("canvas");
-			if(canvas.length) {
+			var canvas = me.shadowRoot.querySelector("canvas");
+			if(canvas) {
 				var evt = new MouseEvent(e.type, e);
-				canvas[0].dispatchEvent(evt);
+				canvas.dispatchEvent(evt);
 			} else {
 				console.log("Unable to locate canvas element to dispatch click event to. User will have to click twice to activate emulator");
 			}
@@ -162,33 +163,34 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 		/* Set up event redirection so that we can click on the "interact"
 		 * button and have it activate the screen of the emulator */
-		$(shadowRoot).find("#screen-overlay-controls").on('click',      redirectEventToCanvas);
-		$(shadowRoot).find("#screen-overlay-controls").on('mouseup',    redirectEventToCanvas);
-		$(shadowRoot).find("#screen-overlay-controls").on('mousedown',  redirectEventToCanvas);
+		this.shadowRoot.querySelector("#screen-overlay-controls").addEventListener('click',    redirectEventToCanvas);
+		this.shadowRoot.querySelector("#screen-overlay-controls").addEventListener('mouseup',  redirectEventToCanvas);
+		this.shadowRoot.querySelector("#screen-overlay-controls").addEventListener('mousedown',redirectEventToCanvas);
 
 		/* Add actions to the overlay buttons. The central button has no action,
 		 * a click on it trickles down to screen-overlay-controls and causes it
 		 * to vanish */
 
 		var zoomAttr   = this.getAttribute('zoomTarget');
-		var zoomTarget = (zoomAttr ? $(this).closest('#'+zoomAttr) : $(this).closest('animated-zoom'))[0];
+		var zoomTarget = (zoomAttr ? this.closest('#'+zoomAttr) : this.closest('animated-zoom'));
 		
 		if(zoomTarget) {
-			$(shadowRoot).find("#zoomInBtn").on('click', function()  {
+			this.shadowRoot.querySelector("#zoomInBtn").addEventListener('click',function()  {
 				overlayActiveState(false);
 				zoomTarget.zoomIn();
 			});
-			$(shadowRoot).find("#zoomOutBtn").on('click',  function() {
+			this.shadowRoot.querySelector("#zoomOutBtn").addEventListener('click',function() {
 				zoomTarget.zoomOut();
 				overlayActiveState(true);
 			});
 		}
 
+		var me = this;
 		function overlayActiveState(active) {
 			if (active) {
-				$(shadowRoot).find("#screen-container").addClass("showOverlayOnHover");
+				me.shadowRoot.querySelector("#screen-container").classList.add("showOverlayOnHover");
 			} else {
-				$(shadowRoot).find("#screen-container").removeClass("showOverlayOnHover");
+				me.shadowRoot.querySelector("#screen-container").classList.remove("showOverlayOnHover");
 			}
 		}
 
@@ -196,11 +198,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 		 * mouse away from the screen area primes the overlay to reappear once the mouse
 		 * renters the screen (this is handled by a hover event)
 		 */
-		$(shadowRoot).find("#screen").on('mouseleave', 
+		this.shadowRoot.querySelector("#screen").addEventListener('mouseleave', 
 			function() {
 				if(!(zoomTarget && zoomTarget.isZoomed())) overlayActiveState(true);
 		});
-		$(shadowRoot).find("#screen-overlay-controls").on('click',
+		this.shadowRoot.querySelector("#screen-overlay-controls").addEventListener('click',
 			function() {
 				overlayActiveState(false);
 		});
@@ -209,7 +211,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 	}
 	
     EmulatorButtonsProto.setRestartAction = function(func) {
-		$(this.shadowRoot).find("#powerBtn, #powerBtn2").click(func);
+		this.shadowRoot.querySelector("#powerBtn").addEventListener('click',func);
+		this.shadowRoot.querySelector("#powerBtn2").addEventListener('click',func);
 	};
 
 	var EmulatorButtons = document.registerElement('emulator-buttons', {prototype: EmulatorButtonsProto});
