@@ -20,18 +20,17 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 </template>
 
 <script>
-	// The following is requires for the webcomponents polyfill
-    document._currentScript = document._currentScript || document.currentScript;
-
+	var retroWebComponentsPath;
+	
+(function (thisDoc) {
 	// Find the base URL
 	function getComponentsPath() {
-		var template = document._currentScript.ownerDocument.querySelector("template");
-		var templateBaseUrl = template.baseURI;
 		var a =  document.createElement('a');
-		a.href = templateBaseUrl;
+		a.href = thisDoc.querySelector("template").baseURI;
 		return a.pathname.replace(/\/[^\/]*$/, '');
 	}
 
 	/* Store the path in a variable so that other scripts can access it */
-	var retroWebComponentsPath = getComponentsPath();
+	retroWebComponentsPath = getComponentsPath();
+})((document._currentScript || document.currentScript).ownerDocument);
 </script>

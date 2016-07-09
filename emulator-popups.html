@@ -176,17 +176,12 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 </template>
 
 <script>
-	// The following is requires for the webcomponents polyfill
-    document._currentScript = document._currentScript || document.currentScript;
-    
-	// importDoc references this import's document
-    	
-    var emulatorPopupsImportDoc = document._currentScript.ownerDocument;
-    	
-    var EmulatorPopupsProto = Object.create(HTMLElement.prototype);
+(function (thisDoc) {
+
+	var EmulatorPopupsProto = Object.create(HTMLElement.prototype);
 
 	EmulatorPopupsProto.createdCallback = function() {
-		var t = emulatorPopupsImportDoc.getElementById('EmulatorPopupsTemplate');
+		var t = thisDoc.getElementById('EmulatorPopupsTemplate');
 		var clone = document.importNode(t.content, true);
 		var shadowRoot = this.createShadowRoot();
 		if(typeof retroWebComponentsPath !== 'undefined') {
@@ -293,4 +288,5 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 			this.setVisibleElement(topmost);
 		}
 	}
+})((document._currentScript || document.currentScript).ownerDocument);
 </script>

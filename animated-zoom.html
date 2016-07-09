@@ -34,17 +34,12 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 </style>
 
 <script>
-	// The following is requires for the webcomponents polyfill
-    document._currentScript = document._currentScript || document.currentScript;
-    
-	// importDoc references this import's document
-    	
-    var animatedZoomImportDoc = document._currentScript.ownerDocument;
-    	
-    var AnimatedZoomProto = Object.create(HTMLElement.prototype);
+(function (thisDoc) {
+
+	var AnimatedZoomProto = Object.create(HTMLElement.prototype);
 
 	AnimatedZoomProto.createdCallback = function() {
-		var t = animatedZoomImportDoc.getElementById('AnimatedZoomTemplate');
+		var t = thisDoc.getElementById('AnimatedZoomTemplate');
       	var clone = document.importNode(t.content, true);
       	var shadowRoot = this.createShadowRoot();
 		shadowRoot.appendChild(clone);
@@ -173,4 +168,5 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 	}
 
 	var AnimatedZoom = document.registerElement('animated-zoom', {prototype: AnimatedZoomProto});
+})((document._currentScript || document.currentScript).ownerDocument);
 </script>

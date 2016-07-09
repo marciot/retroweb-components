@@ -134,17 +134,12 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 </style>
 
 <script>
-	// The following is requires for the webcomponents polyfill
-    document._currentScript = document._currentScript || document.currentScript;
-    
-	// importDoc references this import's document
-
-    var emulatorButtonsImportDoc = document._currentScript.ownerDocument;
+(function (thisDoc) {
 
     var EmulatorButtonsProto = Object.create(HTMLElement.prototype);
 
 	EmulatorButtonsProto.createdCallback = function() {
-		var t = emulatorButtonsImportDoc.getElementById('EmulatorButtonsTemplate');
+		var t = thisDoc.getElementById('EmulatorButtonsTemplate');
 		var clone = document.importNode(t.content, true);
 		var shadowRoot = this.createShadowRoot();
 		shadowRoot.appendChild(clone);
@@ -218,4 +213,5 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 	};
 
 	var EmulatorButtons = document.registerElement('emulator-buttons', {prototype: EmulatorButtonsProto});
+})((document._currentScript || document.currentScript).ownerDocument);
 </script>
