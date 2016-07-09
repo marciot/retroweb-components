@@ -20,7 +20,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 	<content></content>
 </template>
 
-<script id="myStyles" type="text/plain">
+<style>
 	/* It would be better to put these styles inside the template and replace "file-icons" with "::content",
 	 * but that only works in Chrome and not Firefox */
 
@@ -83,52 +83,52 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 		display: block;
 		pointer-events:none;
 
-		background: url('$RETROWEB_COMPONENTS_PATH/artwork/floppy.png');
+		background: url('artwork/floppy.png');
 		background-size: 60px 60px;
 	}
 
 	file-icons A.boot-floppy:before {
-		background: url('$RETROWEB_COMPONENTS_PATH/artwork/floppy-dot.png');
+		background: url('artwork/floppy-dot.png');
 		background-size: 60px 60px;
 	}
 
 	file-icons A.boot-hd:before {
-		background: url('$RETROWEB_COMPONENTS_PATH/artwork/hd-dot.png');
+		background: url('artwork/hd-dot.png');
 		background-size: 60px 60px;
 	}
 
 	file-icons A.boot-rom:before {
-		background: url('$RETROWEB_COMPONENTS_PATH/artwork/rom-dot.png');
+		background: url('artwork/rom-dot.png');
 		background-size: 60px 60px;
 	}
 
 	file-icons A.doc:before {
-		background: url('$RETROWEB_COMPONENTS_PATH/artwork/document.png');
+		background: url('artwork/document.png');
 		background-size: 60px 60px;
 	}
 
 	file-icons A.floppy:before {
-		background: url('$RETROWEB_COMPONENTS_PATH/artwork/floppy.png');
+		background: url('artwork/floppy.png');
 		background-size: 60px 60px;
 	}
 
 	file-icons A.folder:before {
-		background: url('$RETROWEB_COMPONENTS_PATH/artwork/folder.png');
+		background: url('artwork/folder.png');
 		background-size: 60px 60px;
 	}
 
 	file-icons A.folder-dot:before {
-		background: url('$RETROWEB_COMPONENTS_PATH/artwork/folder-dot.png');
+		background: url('artwork/folder-dot.png');
 		background-size: 60px 60px;
 	}
 
 	file-icons A.hyperlink:before {
-		background: url('$RETROWEB_COMPONENTS_PATH/artwork/html-doc.png');
+		background: url('artwork/html-doc.png');
 		background-size: 60px 60px;
 	}
 
 	file-icons A.rom:before {
-		background: url('$RETROWEB_COMPONENTS_PATH/artwork/rom.png');
+		background: url('artwork/rom.png');
 		background-size: 60px 60px;
 	}
 
@@ -136,25 +136,25 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 	file-icons A.download-floppy:before,
 	file-icons A.download-file:before,
 	file-icons A.upload-file:before {
-		background: url('$RETROWEB_COMPONENTS_PATH/artwork/upload.png');
+		background: url('artwork/upload.png');
 		background-size: 60px 60px;
 	}
 
 	file-icons A.enter-url:before {
-		background: url('$RETROWEB_COMPONENTS_PATH/artwork/world.png');
+		background: url('artwork/world.png');
 		background-size: 60px 60px;
 	}
 
 	file-icons A.cassette:before {
-		background: url('$RETROWEB_COMPONENTS_PATH/artwork/cassette.png');
+		background: url('artwork/cassette.png');
 		background-size: 60px 60px;
 	}
 
 	file-icons A.power:before {
-		background: url('$RETROWEB_COMPONENTS_PATH/artwork/power.png');
+		background: url('artwork/power.png');
 		background-size: 60px 60px;
 	}
-</script>
+</style>
 
 <script>
 	// The following is requires for the webcomponents polyfill
@@ -164,13 +164,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
     var fileIconsImportDoc = document._currentScript.ownerDocument;
 	
     var FileIconsProto = Object.create(HTMLElement.prototype);
-
-	// Apply styles on the fly using a modified path, this makes our script relocatable
-	var styles = fileIconsImportDoc.getElementById("myStyles").innerHTML;
-	if(typeof retroWebComponentsPath !== 'undefined') {
-		styles = styles.replace(/\$RETROWEB_COMPONENTS_PATH/g,retroWebComponentsPath);
-	}
-	$('<style>'+styles+'</style>').appendTo('head');
 
 	FileIconsProto.createdCallback = function() {
 		var t = fileIconsImportDoc.getElementById('FileIconsTemplate');
