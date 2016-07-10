@@ -25,134 +25,122 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 	 * but that only works in Chrome and not Firefox */
 
 	file-icons {
-		width:intrinsic; For Safari, see https://developer.mozilla.org/en-US/docs/CSS/width
-		width:-moz-fit-content;
-		width:-webkit-fit-content;
-		width:fit-content;
+		width:					intrinsic; /* For Safari, see https://developer.mozilla.org/en-US/docs/CSS/width */
+		width:					-moz-fit-content;
+		width:					-webkit-fit-content;
+		width:					fit-content;
 
-		margin: 0px auto;
+		margin: 				0px auto;
 	}
 
 	file-icons OL, UL {
-		padding: 0px;
-		margin: 0px;
-		overflow: auto;
+		padding: 				0px;
+		margin: 				0px;
+		overflow: 				auto;
 
 		/* Disallow selection: */
 		
-		-webkit-touch-callout: none;
-		-webkit-user-select: none;
-		-khtml-user-select: none;
-		-moz-user-select: none;
-		-ms-user-select: none;
-		user-select: none;
+		-webkit-touch-callout: 	none;
+		-webkit-user-select: 	none;
+		-khtml-user-select: 	none;
+		-moz-user-select:		none;
+		-ms-user-select:		none;
+		user-select:			none;
 	}
 
 	file-icons A {
-		text-decoration: none;
-		color: black;
+		text-decoration:		none;
+		color:					black;
 	}
 
 	file-icons LI {
-		float: left;
-		margin-right: 20px; /* Spacing between icons */
-		margin-bottom: 10px; /* Spacing between icons */
-		text-align: center;
-		font-size: 15px;
-		font-family: Tahoma, Geneva, sans-serif;
-		list-style-type: none;
+		float:					left;
+		margin-right:			20px; /* Spacing between icons */
+		margin-bottom:			10px; /* Spacing between icons */
+		text-align:				center;
+		font-size:				15px;
+		font-family:			Tahoma, Geneva, sans-serif;
+		list-style-type:		none;
+		cursor:					pointer;
 
 		/* Add ellipses to oversized icon labels */
-		max-width: 200px;
-		white-space: nowrap;
-		overflow: hidden;
-		text-overflow: ellipsis;
+		max-width:				200px;
+		text-overflow:			ellipsis;
+		white-space:			nowrap;
+		overflow:				hidden;
 	}
 
 	file-icons LI:last-child {
-		margin-right: 0px; /* Spacing between icons */
-		margin-bottom: 0px; /* Spacing between icons */
+		margin-right:			0px; /* Spacing between icons */
+		margin-bottom:			0px; /* Spacing between icons */
 	}
 
 	file-icons A:before {
-		content: '';
-		margin-left:auto;
-		margin-right:auto;
-		width:  60px;
-		height: 60px;
-		display: block;
-		pointer-events:none;
+		content:				'';
+		margin-left:			auto;
+		margin-right:			auto;
+		width:					60px;
+		height:					60px;
+		display:				block;
+		pointer-events:			none;
 
-		background: url('artwork/floppy.png');
-		background-size: 60px 60px;
+		background-image:		url('artwork/floppy.png');
+		background-size:		60px 60px;
 	}
 
 	file-icons A.boot-floppy:before {
-		background: url('artwork/floppy-dot.png');
-		background-size: 60px 60px;
+		background-image: url('artwork/floppy-dot.png');
 	}
 
 	file-icons A.boot-hd:before {
-		background: url('artwork/hd-dot.png');
-		background-size: 60px 60px;
+		background-image: url('artwork/hd-dot.png');
 	}
 
 	file-icons A.boot-rom:before {
-		background: url('artwork/rom-dot.png');
-		background-size: 60px 60px;
+		background-image: url('artwork/rom-dot.png');
 	}
 
 	file-icons A.doc:before {
-		background: url('artwork/document.png');
-		background-size: 60px 60px;
+		background-image: url('artwork/document.png');
 	}
 
 	file-icons A.floppy:before {
-		background: url('artwork/floppy.png');
-		background-size: 60px 60px;
+		background-image: url('artwork/floppy.png');
 	}
 
 	file-icons A.folder:before {
-		background: url('artwork/folder.png');
-		background-size: 60px 60px;
+		background-image: url('artwork/folder.png');
 	}
 
 	file-icons A.folder-dot:before {
-		background: url('artwork/folder-dot.png');
-		background-size: 60px 60px;
+		background-image: url('artwork/folder-dot.png');
 	}
 
 	file-icons A.hyperlink:before {
-		background: url('artwork/html-doc.png');
-		background-size: 60px 60px;
+		background-image: url('artwork/html-doc.png');
 	}
 
 	file-icons A.rom:before {
-		background: url('artwork/rom.png');
-		background-size: 60px 60px;
+		background-image: url('artwork/rom.png');
 	}
 
 	file-icons A.upload-floppy:before,
 	file-icons A.download-floppy:before,
 	file-icons A.download-file:before,
 	file-icons A.upload-file:before {
-		background: url('artwork/upload.png');
-		background-size: 60px 60px;
+		background-image: url('artwork/upload.png');
 	}
 
 	file-icons A.enter-url:before {
-		background: url('artwork/world.png');
-		background-size: 60px 60px;
+		background-image: url('artwork/world.png');
 	}
 
 	file-icons A.cassette:before {
-		background: url('artwork/cassette.png');
-		background-size: 60px 60px;
+		background-image: url('artwork/cassette.png');
 	}
 
 	file-icons A.power:before {
-		background: url('artwork/power.png');
-		background-size: 60px 60px;
+		background-image: url('artwork/power.png');
 	}
 </style>
 
