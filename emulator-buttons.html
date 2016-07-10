@@ -144,14 +144,35 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 		var shadowRoot = this.createShadowRoot();
 		shadowRoot.appendChild(clone);
 
+		/* Searches inside the <contents> tag for an element of specific type.
+		 * This is done by searching through the distributed nodes of that element.
+		 */
+		function findInContentsTag(contentsSelector, tagName) {
+			var distributedNodes = me.shadowRoot.querySelector(contentsSelector).getDistributedNodes();
+			var match;
+			for (var i = 0; i < distributedNodes.length; ++i) {
+				if(distributedNodes[i].nodeType == Node.ELEMENT_NODE) {
+					if(distributedNodes[i].tagName == tagName) {
+						match = distributedNodes[i];
+					} else {
+						// Search children
+						match = distributedNodes[i].querySelector(tagName);
+						if(match) {
+							break;
+						}
+					}
+				}
+			}
+			return match;
+		}
+		
 		var me = this;
 		/* Proceed to set up events */
 		function redirectEventToCanvas(e) {
 			/* Reference: 
 			   http://stackoverflow.com/questions/11974262/how-to-clone-or-re-dispatch-dom-events
 			  */
-			var distributedNodes = $(shadowRoot).find("#screen")[0].getDistributedNodes();
-			var canvas = me.shadowRoot.querySelector("canvas");
+			var canvas = findInContentsTag("#screen", "CANVAS");
 			if(canvas) {
 				var evt = new MouseEvent(e.type, e);
 				canvas.dispatchEvent(evt);
@@ -166,24 +187,23 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 		this.shadowRoot.querySelector("#screen-overlay-controls").addEventListener('click',    redirectEventToCanvas);
 		this.shadowRoot.querySelector("#screen-overlay-controls").addEventListener('mouseup',  redirectEventToCanvas);
 		this.shadowRoot.querySelector("#screen-overlay-controls").addEventListener('mousedown',redirectEventToCanvas);
-
-		/* Add actions to the overlay buttons. The central button has no action,
-		 * a click on it trickles down to screen-overlay-controls and causes it
-		 * to vanish */
-
-		var zoomAttr   = this.getAttribute('zoomTarget');
-		var zoomTarget = (zoomAttr ? this.closest('#'+zoomAttr) : this.closest('animated-zoom'));
 		
-		if(zoomTarget) {
-			this.shadowRoot.querySelector("#zoomInBtn").addEventListener('click',function()  {
-				overlayActiveState(false);
-				zoomTarget.zoomIn();
-			});
-			this.shadowRoot.querySelector("#zoomOutBtn").addEventListener('click',function() {
-				zoomTarget.zoomOut();
-				overlayActiveState(true);
-			});
+		/* Locate the zoomTarget, the animated-zoom object to which zooming in applies */
+		var zoomAttr   = me.getAttribute('zoomTarget');
+		var zoomTarget = (zoomAttr ? me.closest('#'+zoomAttr) : me.closest('animated-zoom'));
+		if(typeof zoomTarget.zoomIn == 'undefined') {
+			/* Looks like WebComponents isn't properly wrapping the closest method */
+			zoomTarget = wrap(zoomTarget);
 		}
+
+		this.shadowRoot.querySelector("#zoomInBtn").addEventListener('click',function()  {
+			overlayActiveState(false);
+			zoomTarget.zoomIn();
+		});
+		this.shadowRoot.querySelector("#zoomOutBtn").addEventListener('click',function() {
+			zoomTarget.zoomOut();
+			overlayActiveState(true);
+		});
 
 		var me = this;
 		function overlayActiveState(active) {
@@ -198,7 +218,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 		 * mouse away from the screen area primes the overlay to reappear once the mouse
 		 * renters the screen (this is handled by a hover event)
 		 */
-		this.shadowRoot.querySelector("#screen").addEventListener('mouseleave', 
+		this.shadowRoot.querySelector("#screen-container").addEventListener('mouseleave', 
 			function() {
 				if(!(zoomTarget && zoomTarget.isZoomed())) overlayActiveState(true);
 		});
