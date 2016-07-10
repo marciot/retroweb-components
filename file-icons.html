@@ -25,11 +25,14 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 	 * but that only works in Chrome and not Firefox */
 
 	file-icons {
-		width:					intrinsic; /* For Safari, see https://developer.mozilla.org/en-US/docs/CSS/width */
+		/* For Safari, see https://developer.mozilla.org/en-US/docs/CSS/width */
+		width:					intrinsic;
 		width:					-moz-fit-content;
 		width:					-webkit-fit-content;
 		width:					fit-content;
 
+		/* By default, center icons on page */
+		display:				block;
 		margin: 				0px auto;
 	}
 
