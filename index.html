@@ -1,6 +1,5 @@
 <html>
 	<head>
-	    <script type="text/javascript" src="https://code.jquery.com/jquery-3.0.0.min.js"></script>
 		<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/webcomponentsjs/0.7.22/webcomponents.min.js"></script>
 
 		<link rel="import" href="find-base-dir.html">
@@ -166,7 +165,7 @@
 						<dt>src</dt>
 						<dd>URL for the SVG</dd>
 					</dl>
-					
+
 					<h3>CSS Attributes:</h3>
 					<dl>
 						<dt>--path-color</dt>
@@ -246,7 +245,7 @@
 					This element provides no controls for triggering the action. Use this element alone if you intend to build your own user interface, otherwise combine it with <code>emulator-buttons</code> for a complete solution.
 					</p>
 					<button id="zoom-btn">Try it</button>
-					
+
 					<h3>JavaScript Methods:</h3>
 					<dl>
 						<dt>zoomIn()</dt>
@@ -291,7 +290,7 @@
 							<li><strong>Center:</strong> Allows the user to interact with the emulator.
 							<li><strong>Right:</strong> Triggers a callback function to reset the emulator.
 						</ul>
-						
+
 					In addition to the floating controls, <code>emulator-buttons</code> will also add two buttons to the full-screen mode, allowing the user to exit full screen mode or restart the emulator.
 
 					<h3>JavaScript Methods:</h3>
@@ -299,7 +298,9 @@
 						<dt>setRestartAction(callback)</dt>
 						<dd>Sets a function to be called when the user clicks the restart button</dd>
 					</dl>
-					</p>
+
+					<h3>Credits:</h3>
+					<a href="http://modernuiicons.com/">Modern UI Icons</a> for interface icons.
 				</td>
 			</tr>
 
@@ -411,6 +412,9 @@
 						<li>cassette</li>
 						<li>power</li>
 					</ul>
+
+					<h3>Credits:</h3>
+					<a href="http://commons.wikimedia.org/wiki/Crystal_Clear">Crystal Clear</a> icon set by Everaldo Coelho
 				</td>
 			</tr>
 
@@ -431,15 +435,15 @@
 		<script>
 			window.addEventListener('WebComponentsReady', function(e) {
 				function animatedZoomDemo() {
-					var el = $("#animatedZoomDemo")[0];
-					$("#zoom-btn").click(function() {el.toggleZoom();});
-					$(el).click(function() {el.zoomOut();});
+					var el = document.querySelector("#animatedZoomDemo");
+					document.querySelector("#zoom-btn").addEventListener('click',function() {el.toggleZoom();});
+					el.addEventListener('click',function() {el.zoomOut();});
 				}
 
 				function emulatorSkinsDemo() {
 					var skin	= document.getElementById("test-skins");
 					makeIteratorButton(
-						$("#next-skin"),
+						"#next-skin",
 						skin.getNames(),
 						function(current, last) {
 							skin.loadByName(current);
@@ -454,8 +458,8 @@
 
 				function emulatorPopupDemo() {
 					var popups		= document.getElementById("test-popups");
-					makeIteratorButton(
-						$("#next-popup"),
+					var btn = makeIteratorButton(
+						"#next-popup",
 						popups.getNames(),
 						function(current, last) {
 							popups.setVisibility(last, false);
@@ -463,10 +467,11 @@
 						}
 					);
 					document.querySelector("#request-rom").addEventListener('click', function() {
+						popups.setVisibility(btn.getCurrent(), false);
 						popups.askForRom(function(file) {if(file) alert("You uploaded " + file.name);});});
 				}
 
-				function makeIteratorButton(btn, list, callback) {
+				function makeIteratorButton(btnSelector, list, callback) {
 					var which		= 0;
 					function chooseNext() {
 						var prev = list[which];
@@ -476,7 +481,13 @@
 						}
 						callback(list[which], prev);
 					}
-					$(btn).click(chooseNext);
+					document.querySelector(btnSelector).addEventListener('click',chooseNext);
+
+					var obj = {};
+					obj.getCurrent = function() {
+						return list[which];
+					}
+					return obj;
 				}
 
 				emulatorSkinsDemo();

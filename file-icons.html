@@ -200,28 +200,30 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 		 */
 		function setDefaultIconClass(e) {
 			if(e.className == "") {
-				$(e).addClass(e.getAttribute("data-type") || "hyperlink");
+				e.classList.add(e.getAttribute("data-type") || "hyperlink");
 			}
 		}
 
 		/* Find a UL inside this element, otherwise append new one */
-		var ol = $(this).find("ol");
-		if(ol.length) {
-			ol = ol[0];
-		} else {
+		var ol = this.querySelector("ol");
+		if(!ol) {
 			ol = document.createElement("ol");
 			ol.className = "icons";
 			this.appendChild(ol);
 		}
 
 		/* Each unwrapped A gets wrapped in LI and added to the OL */
-		$(this).children("A").each(
-			function(i,e) {
-				setDefaultIconClass(e);
+		/* this.children gets dynamically updated, so we need to make a copy prior to
+		 * iterating (as we are adding children) */
+		var els = Array.prototype.slice.call(this.children);
+		for(var i = 0; i < els.length; i++) {
+			if(els[i].tagName == "A") {
+				setDefaultIconClass(els[i]);
 				var li = document.createElement("li");
-				li.appendChild(e);
+				li.appendChild(els[i]);
 				ol.appendChild(li);
-		});
+			}
+		}
 	}
 
 	var FileIcons = document.registerElement('file-icons', {prototype: FileIconsProto});

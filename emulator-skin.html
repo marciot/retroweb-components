@@ -116,7 +116,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 		var flush = this.getAttribute('flush');
 		if(flush == "right") {
-			$(shadowRoot).find("#skin").addClass("flush-right");
+			shadowRoot.querySelector("#skin").classList.add("flush-right");
 		}
 	};
 
@@ -126,14 +126,22 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 		if(typeof retroWebComponentsPath !== 'undefined') {
 			skinPath = retroWebComponentsPath + skinPath;
 		}
-		$.get(skinPath,
-			function(styles) {
+		var me = this;
+		var request = new XMLHttpRequest();
+		request.open('GET', skinPath, true);
+		request.onload = function() {
+			if (request.status >= 200 && request.status < 400) {
+				var styles = request.response;
 				if(typeof retroWebComponentsPath !== 'undefined') {
 					styles = styles.replace(/\$RETROWEB_COMPONENTS_PATH/g, retroWebComponentsPath);
 				}
-				$(me.shadowRoot).find("#skin-resources").html(styles);
+				me.shadowRoot.querySelector("#skin-resources").innerHTML = styles;
 			}
-		);
+		};
+		request.onerror = function() {
+			console.log("Unable to load the skin " + skinPath);
+		};
+		request.send();
 	}
 
 	EmulatorSkinProto.getNames = function() {
