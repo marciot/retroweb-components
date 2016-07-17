@@ -1,0 +1,320 @@
+<!--
+RetroWeb Components
+Copyright (C) 2016 Marcio Teixeira
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
+of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+-->
+<template id="SerialModemTemplate">
+	<style>
+		#exchange {
+			text-align:			center;
+			font-size:			125%;
+			font-family: 		Arial, sans-serif;
+			font-weight:		bold;
+			width:				fit-content;
+			margin:				1em auto;
+		}
+
+		#exchange H1 {
+			font-family: 		"Arial Black", Arial, sans-serif;
+			font-size:			150%;
+		}
+
+		/* Show or hide DIVS depending on the data-status attribute */
+		#exchange > DIV {
+			display:			none;
+		}
+		
+	</style>
+	<div id="exchange">
+		<div id="offline">
+			<a id="goOnline">Give me a virtual phone number!</a>
+		</div>
+		<div id="joining">
+			Contacting the RetroWeb Telephone Exchange.
+		</div>
+		<div id="joined">
+			Your virtual number is <span id="localPhoneNumber"></span>
+		</div>
+		<div id="error">
+			Cannot join the RetroWeb Telephone Exchange (<span id="errorType"></span>)
+		</div>
+		<div id="connected">
+			Connected to remote computer!
+		</div>
+	</div>
+</template>
+
+<style>
+		peer-serial {
+			display:	block;
+		}
+</style>
+
+<!--<script src="http://cdn.peerjs.com/0.3/peer.min.js"></script>-->
+<script src="http://cdn.peerjs.com/0.3/peer.js"></script>
+<script src="serial-modem.resources/hayes.js"></script>
+
+<script>
+(function(namespace, thisDoc){
+	var shadowRoot;
+	
+	/* In order to get data in and out of the emulator, we create a virtual character device
+	 * in the Emscripten filesystem. We then have the PCE emulator use the posix character
+	 * driver to read and write to that file.
+	 */
+	var EmscriptenSerialDevice = class {
+		constructor(characterAvailableCallback) {
+			this.characterAvailableCallback = characterAvailableCallback;
+			this.availableData = "";
+		}
+		
+		sendDataToSerialPort(data) {
+			this.availableData += data;
+		}
+		
+		createFile(file) {
+			var me = this;
+			function serialWrite(stream, buffer, offset, length, position) {
+				for(var i = 0; i < length; i++) {
+					var data = buffer[offset+i];
+					me.characterAvailableCallback(String.fromCharCode(data));
+				}
+				return length;
+			}
+			
+			function serialRead(stream, buffer, offset, length, position) {
+				if(me.availableData.length) {
+					if(length > me.availableData.length) {
+						length = me.availableData.length;
+					}
+					for(var i = 0; i < length; i++) {
+						buffer[offset+i] = me.availableData.charCodeAt(i);
+					}
+					me.availableData = "";
+					return length;
+				} else {
+					return 0;
+				}
+			}
+			
+			console.log("Created serial device file", file);
+						
+			var ops = {
+				read:   serialRead,
+				write:  serialWrite
+			};
+			
+			var id = FS.makedev(64, 0);
+			FS.registerDevice(id, ops);
+			FS.mkdev(file, id);
+		}
+	}
+	
+	var TelephoneLine = class {
+		constructor(networkDataCallback) {
+			this.startNum				= 5550100; // Map to fictional PSTN numbers
+			this.finalNum				= 5550199;
+			this.tryNum					= this.startNum;
+			this.joined					= false;
+			this.networkDataCallback	= networkDataCallback;
+			this.conn					= null;
+			
+			this.setStatus('offline');
+		}
+
+		/* joinExchange connects to the RetroWeb Telephone Exchange and obtains
+		 * a number. That is, it tries creating peer.js with peerIds for each
+		 * to successive virtual phone number until it finds one that is free.
+		 */
+		joinExchange() {
+			var me = this;
+			
+			function errorFunc(err) {
+				console.log(err.type);
+				if(err.type == 'unavailable-id') {
+					window.setTimeout(tryNextNumber, 10);
+				} else {
+					me.setStatus('error');
+					shadowRoot.getElementById('errorType').innerHTML = err.type;
+				}
+			}
+			
+			function tryNextNumber() {
+				me.tryNum++;
+				if(me.tryNum <= me.finalNum) {
+					me.joinExchange();
+				}
+			}
+
+			var id = "retroweb" + this.tryNum;
+			console.log("Attempting to join exchange with id ", id);
+			this.peer = new Peer(id, {key: 'u7htss9n8pz257b9'});
+			this.peer.on('error', errorFunc);
+			this.peer.on('open', function(id) {
+				console.log("Joined exchange with id ", id);
+				me.setStatus('joined');
+				me.joined = true;
+				shadowRoot.getElementById('localPhoneNumber').innerHTML = me.phoneStr;
+				me.peer.on('connection', function(conn) {me.processPeerConnection(conn);});
+			});
+		}
+		
+		processPeerConnection(newConnection) {
+			console.log("Processing new connection");
+			var me = this;
+			this.setStatus('connected');
+			this.conn = newConnection;
+			// Receive messages
+			this.conn.on('data', function(data) {me.receiveNetworkData(data);});
+		}
+		
+		receiveNetworkData(data) {
+			if(typeof data == 'object' && data.type == "offhook") {
+				this.stopRinging();
+			}
+			this.networkDataCallback(data);
+		}
+		
+		sendNetworkData(data) {
+			if(this.conn) {
+				this.conn.send(data);
+			}
+		}
+		
+		sendOffhook() {
+			this.conn.send({type:"offhook"});
+		}
+		
+		startRinging() {
+			var me = this;
+			if(this.conn) {
+				this.ringInterval = window.setInterval(function() {me.sendNetworkData({type:"ring"});}, 1000);
+			}
+		}
+		
+		stopRinging() {
+			if(this.ringInterval) {
+				window.clearInterval(this.ringInterval);
+				this.ringInterval = null;
+			}
+		}
+	
+		connectToNumber(number) {
+			if(number.match(/55501[0-9][0-9]/)) {
+				var id = "retroweb" + number;
+				console.log("Connecting to peer", id);
+				this.conn = this.peer.connect(id);
+				this.processPeerConnection(this.conn);
+				this.startRinging();
+			 } else {
+				console.log("Invalid number");
+			 }
+		}
+		
+		get phoneStr() {
+			if(this.joined) {
+				var asString = this.tryNum.toString();
+				return asString.substr(0,3) + '-' + asString.substr(3);
+			} else {
+				return "000-0000";
+			}
+		}
+		
+		setStatus(status) {
+			if(this.status) {
+				shadowRoot.getElementById(this.status).style.display = "none";
+			}
+			this.status = status;
+			console.log("Setting status to", status);
+			shadowRoot.getElementById(this.status).style.display = "block";
+		}
+	}
+	
+    var SerialModemProto = Object.create(HTMLElement.prototype);
+
+	SerialModemProto.createdCallback = function() {
+		if(!this.parentNode || !this.parentNode.classList.contains('allowCustomElements')) {
+			return;
+		}
+
+		var t = thisDoc.getElementById('SerialModemTemplate');
+		var clone = document.importNode(t.content, true);
+		shadowRoot = this.createShadowRoot();
+		shadowRoot.appendChild(clone);
+
+		var serialPort, phoneLine, modem;
+
+		/* Events FROM the SerialPort that go TO the Modem */
+		
+		function characterAvailableCallback(c) {
+			modem.processCharacter(c);
+		}
+		
+		/* Events FROM the Modem that go TO the SerialPort */
+		
+		function replyCallback(data) {
+			serialPort.sendDataToSerialPort(data);
+		}
+
+		/* Events FROM the Modem that go TO the TelephoneLine */
+		
+		function transmitCallback(data) {
+			phoneLine.sendNetworkData(data);
+		}
+		
+		function dialCallback(number) {
+			console.log("Dialing ", number);
+			phoneLine.connectToNumber(number);
+		}
+		
+		function answerCallback() {
+			phoneLine.sendOffhook();
+		}
+
+		/* Events FROM the TelephoneLine that go TO the Modem */
+
+		function networkDataCallback(data) {
+			if(typeof data == "object") {
+				switch(data.type) {
+					case "ring":
+						modem.ring();
+						break;
+					case "offhook":
+						modem.connectionEstablished();
+						break;
+				}
+			} else {
+				modem.dataFromRemote(data);
+			}
+		}
+
+		serialPort  = new EmscriptenSerialDevice(characterAvailableCallback);
+		modem       = new Modem(replyCallback, dialCallback, transmitCallback, answerCallback);
+		phoneLine   = new TelephoneLine(networkDataCallback);
+		
+		shadowRoot.getElementById("goOnline").addEventListener('click', function() {phoneLine.joinExchange();});
+		if(emulator) {
+			emulator.addEventListener("emscriptenPreInit", function() {
+				serialPort.createFile("ser_a.io");
+			});
+		} else {
+			console.log("Unable to locate emulator object");
+		}
+	}
+
+	var SerialModem = document.registerElement('serial-modem', {prototype: SerialModemProto});
+})(window.RetroWeb = window.RetroWeb || {}, (document._currentScript || document.currentScript).ownerDocument);
+</script>
