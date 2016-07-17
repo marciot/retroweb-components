@@ -18,7 +18,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 -->
 <template id="EmulatorButtonsTemplate">
 	<style>
-		#screen-container {
+		#screen-container, #screen-container-inner {
 			position:		relative;
 			padding:		0px;
 			width:			100%;
@@ -110,7 +110,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 		}
 	</style>
 	<div id="screen-container">
-		<content id="screen"></content>
+		<div id="screen-container-inner">
+			<content id="screen"></content>
+		</div>
 
 		<inline-svg src="$RETROWEB_COMPONENTS_PATH/artwork/appbar.magnify.minus.svg" id="zoomOutBtn" class="full-screen-controls">></inline-svg>
 		<inline-svg src="$RETROWEB_COMPONENTS_PATH/artwork/appbar.power.svg"         id="powerBtn2"  class="full-screen-controls"></inline-svg>
@@ -169,8 +171,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 		}
 		
 		var me = this;
-		/* Proceed to set up events */
-		function redirectEventToCanvas(e) {
+		/* Proceed to set up events. A click on the overlay would normally capture the event, so the
+		 * user would need to double click to hide the overlay and then activate the emulator screen.
+		 * To avoid the need for a double-click, I redispatch mouse events on the overlay to the canvas.
+		*/
+		function redispatchToCanvas(e) {
 			/* Reference: 
 			   http://stackoverflow.com/questions/11974262/how-to-clone-or-re-dispatch-dom-events
 			  */
@@ -184,11 +189,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 			return true;
 		}
 
-		/* Set up event redirection so that we can click on the "interact"
-		 * button and have it activate the screen of the emulator */
-		this.shadowRoot.querySelector("#screen-overlay-controls").addEventListener('click',    redirectEventToCanvas);
-		this.shadowRoot.querySelector("#screen-overlay-controls").addEventListener('mouseup',  redirectEventToCanvas);
-		this.shadowRoot.querySelector("#screen-overlay-controls").addEventListener('mousedown',redirectEventToCanvas);
+		/* Set up event redirection so that we can click on the "interact" button and have it activate the
+		 * screen of the emulator with one click */
+		this.shadowRoot.querySelector("#screen-overlay-controls").addEventListener('click',    redispatchToCanvas);
+		this.shadowRoot.querySelector("#screen-overlay-controls").addEventListener('mouseup',  redispatchToCanvas);
+		this.shadowRoot.querySelector("#screen-overlay-controls").addEventListener('mousedown',redispatchToCanvas);
 		
 		/* Locate the zoomTarget, the animated-zoom object to which zooming in applies */
 		var zoomAttr   = me.getAttribute('zoomTarget');
@@ -207,6 +212,13 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 			overlayActiveState(true);
 		});
 
+		/* When the user clicks on the screen overlay, the overlay is hidden to reveal the
+		 * emulator screen underneath. Moving the mouse away from the screen area primes
+		 * the overlay to reappear once again.
+		 *
+		 * The overlay is toggled via a CSS hover that is functional when .showOverlayOnHover
+		 * is present on #screen-container. 
+		 */
 		var me = this;
 		function overlayActiveState(active) {
 			if (active) {
@@ -216,18 +228,15 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 			}
 		}
 
-		/* The overlay is hidden to reveal the screen when the user clicks. Moving the
-		 * mouse away from the screen area primes the overlay to reappear once the mouse
-		 * renters the screen (this is handled by a hover event)
+		/* Clicking on the screen clears .showOverlayOnHover and disables the overlay; moving
+		 * away from the screen triggers "mouseleave" to reenable the overlay. To work around a
+		 * Safari bug, I attach the 'mouseleave' action to #screen-container-inner to avoid
+		 * spurious events that would cause the overlay to reappear right after it was hidden.
 		 */
-		this.shadowRoot.querySelector("#screen-container").addEventListener('mouseleave', 
-			function() {
-				if(!(zoomTarget && zoomTarget.isZoomed())) overlayActiveState(true);
-		});
 		this.shadowRoot.querySelector("#screen-overlay-controls").addEventListener('click',
-			function() {
-				overlayActiveState(false);
-		});
+			function() {overlayActiveState(false);});
+		this.shadowRoot.querySelector("#screen-container-inner").addEventListener('mouseleave', 
+			function() {if(!(zoomTarget && zoomTarget.isZoomed())) overlayActiveState(true);});
 		
 		overlayActiveState(true);
 	}
