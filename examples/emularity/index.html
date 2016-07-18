@@ -21,47 +21,72 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 	<head>
 		<!-- WebComponents is needed for HTML imports on iOS 7 -->
 		<script type="text/javascript" src="/lib/webcomponents/webcomponents.min.js"></script>
-		<script type="text/javascript" src="https://code.jquery.com/jquery-3.0.0.min.js"></script>
-		<script type="text/javascript" src="/lib/utils.js"></script>
 
+		<link rel="import" href="/components/find-base-dir.html"></link>
 		<link rel="import" href="/components/inline-svg.html"></link>
 		<link rel="import" href="/components/animated-zoom.html"></link>
 		<link rel="import" href="/components/emulator-buttons.html"></link>
 		<link rel="import" href="/components/emulator-popups.html"></link>
 		<link rel="import" href="/components/emulator-skin.html"></link>
-		<link rel="import" href="/emulators/emulator.html">
 
-		<title>Mac Plus Emulator</title>
+		<script type="text/javascript" src="es6-promise.js"></script>
+		<script type="text/javascript" src="browserfs.js"></script>
+		<script type="text/javascript" src="loader.js"></script>
+
+		<title>Apple IIe Emulator</title>
 		<style>
 			#sidebar {
-				padding-top:		10em;
+				padding-top:		5em;
 				padding-left:		1em;
 				padding-right:		1em;
 				width:				100%;
 				height:				100%;
 			}
+			
+			#canvas {
+				height: 100%;
+				width:	100%;
+			}
+			
+			animated-zoom {
+				position:	absolute;
+				width:		100%;
+				height:		100%;
+			}
 		</style>
 	</head>
 	<body>
-		<emulator-skin name="macplus">
-			<div id="screen-area"></div>
+		<emulator-skin name="apple2e">
+			<div id="screen-area">
+				<animated-zoom>
+					<emulator-buttons>
+						<canvas id="canvas"></canvas>
+					</emulator-buttons>
+				</animated-zoom>
+			</div>
 			<div id="sidebar">
-				<h1>This is the sidebar</h1>
-				Content here will stay to left of the emulator's screen.
-				You may use a "min-width" attribute if you wish to keep
-				this area from becoming too narrow.
+				<h1>Using RetroWeb Components with Emularity</h1>
+				This example demonstrates loading up a game from the Internet
+				Archives using <a href="https://github.com/db48x/emularity">Emularity</a>.
+				
+				<h2>RetroWeb components used:</h2>
+				<ul>
+					<li>emulator-skin (using the apple2e skin)
+					<li>emulator-buttons
+					<li>animated-zoom
+				</ul>
+				
+				<h2>Game Credits:</h2>
+				<a href="https://archive.org/details/a2_Donkey_Kong_1983_Atari">Donkey Kong</a> - The Internet Archive.
 			</div>
 		</emulator-skin>
 
 		<script type="text/javascript">
 			function webComponentsReady() {
-				var emulator = createEmulator(
-					document.getElementById("screen-area"),
-					"pce-macplus"
-				);
-				emulator.addEventListener('emulatorReady', function() {
-					emulator.mountDriveFromUrl("hd1", "/disks/mac-marcio's-boot-1.0.qed", true);
-				});
+			  var emulator = new IALoader(document.querySelector("#canvas"),
+					"a2_Donkey_Kong_1983_Atari/Donkey_Kong_1983_Atari.dsk"
+			  );
+			  emulator.start({ waitAfterDownloading: false });
 			}
 
 			window.addEventListener('WebComponentsReady', webComponentsReady);
