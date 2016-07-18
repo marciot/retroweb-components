@@ -4,50 +4,35 @@
  */
 class Modem {
 
-	constructor(replyCallback, dialCallback, transmitCallback, answerCallback) {
-		this.escapeCount      = 0;
-		this.timer            = null;
-		this.echo             = true;
-		this.verbose          = true;
-		this.selectedRegister = 0;
-		this.cmdBuffer        = "";
-		this.lastCommande     = "";
-		this.commandMode      = true;
-		
-		this.registerValues   = [
-			0,  // S0 - Number of rings before auto answer
-			0,  // S1 - Ring counter
-			43, // S2 - Escape character
-			13, // S3 - Carriage return
-			10, // S4 - Line feed
-			8,  // S5 - Backspace
-			2,  // S6 - Wait time before blind dialing
-			50, // S7 - Wait for carrier after dial
-			2,  // S8 - Pause time for Comma
-			6,  // S9 - Carrier Detect Response Time
-			14, // S10 - Delay between loss of carrier and hang-up
-			95, // S11 - DTMF Tone Duration
-			50  // S12 - Escape code guard time (in fiftieths of seconds)
-		];
-		
+	constructor(replyCallback, dialCallback, transmitCallback, onHookCallback, offHookCallback) {
+		this.Mode = Object.freeze({
+			"COMMAND": 1,
+			"ONLINE" : 2
+		});
+		this.timer             = null;
+		this.escapeCount       = 0;
+		this.lastCommand       = "";
+		this.reset();
+
 		this.dialCallback      = dialCallback;
 		this.replyCallback     = replyCallback;
 		this.transmitCallback  = transmitCallback;
-		this.answerCallback    = answerCallback;
+		this.onHookCallback    = onHookCallback;
+		this.offHookCallback   = offHookCallback;
 	}
-	
+
 	get guardTime() {
 		return this.registerValues[12]*20; // In miliseconds
 	}
-	
+
 	get cr() {
 		return String.fromCharCode(this.registerValues[3]);
 	}
-	
+
 	get lf() {
 		return String.fromCharCode(this.registerValues[4]);
 	}
-	
+
 	get bs() {
 		return String.fromCharCode(this.registerValues[5]);
 	}
@@ -55,15 +40,15 @@ class Modem {
 	get autoAnswer() {
 		return this.registerValues[0];
 	}
-	
+
 	get ringCounter() {
 		return this.registerValues[1];
 	}
-	
+
 	set ringCounter(value) {
 		this.registerValues[1] = value;
 	}
-	
+
 	_print(str) {
 		this.replyCallback(str);
 	}
@@ -77,51 +62,79 @@ class Modem {
 			this.sendLastCmdResult();
 		}
 	}
-	
+
 	dataFromRemote(data) {
-		if(!this.commandMode) {
+		if(this.mode == this.Mode.ONLINE) {
 			this._print(data);
 		}
 	}
 
-	connectionEstablished() {
-		this.cmdResultCode(1, "CONNECT");
-		this.sendLastCmdResult();
-		this.dataMode();
-	}
-	
 	answer() {
-		console.log("Answering");
-		this.connectionEstablished();
-		this.answerCallback();
+		this.offHookCallback();
+		this.sendCarrierSignal();
 	}
-	
-	commandMode() {
-		this.cmdOk();
-		this.commandMode = true;
+
+	remoteIsOnHook() {
+		if(this.connected) {
+			this.cmdResultCode(3, "NO CARRIER");
+			this.sendLastCmdResult();
+			this.connected = false;
+			this.onHookCallback();
+			this.setMode(this.Mode.COMMAND);
+		}
 	}
-	
-	dataMode() {
-		this.escapeCount  = 0;
-		this.lastCharTime = Date.now();
-		this.commandMode  = false;
+
+	carrierDetected() {
+		if(!this.connected) {
+			this.connected = true;
+			this.sendCarrierSignal(); // Reply with a carrier of my own
+			this.cmdResultCode(1, "CONNECT");
+			this.sendLastCmdResult();
+			this.setMode(this.Mode.ONLINE);
+		}
+	}
+
+	busySignal() {
+		this.cmdResultCode(7, "BUSY");
+		this.sendLastCmdResult();
+		this.onHookCallback();
+	}
+
+	sendCarrierSignal() {
+		this.transmitCallback({type:"carrier"});
+	}
+
+	setMode(mode) {
+		switch(mode) {
+			case this.Mode.COMMAND:
+				break;
+			case this.Mode.ONLINE:
+				this.escapeCount  = 0;
+				this.lastCharTime = Date.now();
+				break;
+		}
+		this.mode = mode;
 	}
 
 	/* Extracts the value of a short command, such as E0 */
 	getCmdValue(matchSet) {
 		return matchSet[1] ? parseInt(matchSet[1],10) : 0;
 	}
-	
+
 	/* Processes a short command, such as E0 that has no side effects other than setting a
 	 * property to a numeric value */
 	valueCmd(matchSet, prop, noOk) {
 		this[prop] = this.getCmdValue(matchSet);
 		this.cmdOk();
 	}
-	
+
 	/* These commands have side-effects, but inherit from valueCmd */
-	hookCmd(matchSet, prop) {
-		var onhook = this.getCmdValue(matchSet);
+	hookCmd(matchSet) {
+		if(this.getCmdValue(matchSet) == 0) {
+			this.onHookCallback();
+		} else {
+			this.offHookCallback();
+		}
 		this.cmdOk();
 	}
 
@@ -151,7 +164,7 @@ class Modem {
 	cmdError() {
 		this.cmdResultCode(4, "ERROR");
 	}
-	
+
 	sendLastCmdResult() {
 		if(this.cmdResult) {
 			if(this.verbose) {
@@ -164,27 +177,49 @@ class Modem {
 				}
 			}
 			console.log("Modem reply: ", this.cmdResult.text);
+			this.cmdResult = null;
 		}
 	}
 
 	/* These commands are specialized */
 	dialCmd(matchSet) {
 		var dialStr = matchSet[2];
-		this.dialCallback(dialStr);
+		this.dialCallback(dialStr.replace(/[^0-9]/,''));
 	}
 
 	onlineCmd(matchSet) {
-		console.log("Going online");
-		this.dataMode();
-	}
-	
-	answerCmd(matchSet) {
-		this.answer();
+		this.setMode(this.Mode.ONLINE);
 	}
 
-	resetCmd(matchSet) {
-		console.log("Resetting modem");
+	reset() {
+		this.mode             = this.Mode.COMMAND;
+		this.echo             = true;
+		this.verbose          = true;
+		this.selectedRegister = 0;
+		this.cmdBuffer        = "";
+
+		this.registerValues   = [
+			0,  // S0 - Number of rings before auto answer
+			0,  // S1 - Ring counter
+			43, // S2 - Escape character
+			13, // S3 - Carriage return
+			10, // S4 - Line feed
+			8,  // S5 - Backspace
+			2,  // S6 - Wait time before blind dialing
+			50, // S7 - Wait for carrier after dial
+			2,  // S8 - Pause time for Comma
+			6,  // S9 - Carrier Detect Response Time
+			14, // S10 - Delay between loss of carrier and hang-up
+			95, // S11 - DTMF Tone Duration
+			50  // S12 - Escape code guard time (in fiftieths of seconds)
+		];
 		this.cmdOk();
+
+		/* MazeWars uses ATZ to hang up, so make sure we send an onHook command to disconnect the other end */
+		if(this.connected) {
+			this.onHookCallback();
+			this.connected = false;
+		}
 	}
 
 	registerCmd(matchSet) {
@@ -216,7 +251,7 @@ class Modem {
 			me.cmdError();
 			command = "";
 		}
-		
+
 		function execActionIfCmdMatches(regex, action, arg) {
 			var match = false;
 			command = command.replace(regex,
@@ -235,7 +270,7 @@ class Modem {
 		error();
 
 		while(command.length) {
-			execActionIfCmdMatches(/^A/i,                         this.answerCmd             ) ||
+			execActionIfCmdMatches(/^A/i,                         this.answer                ) ||
 			execActionIfCmdMatches(/^D([TP])([0-9WR@,;!L]+)/i,    this.dialCmd               ) ||
 			execActionIfCmdMatches(/^E([01])?/i,                  this.valueCmd, "echo"      ) ||
 			execActionIfCmdMatches(/^H([01])?/i,                  this.hookCmd,  "hook"      ) ||
@@ -246,9 +281,9 @@ class Modem {
 			execActionIfCmdMatches(/^Q([0-1])?/i,                 this.valueCmd, "quiet"     ) ||
 			execActionIfCmdMatches(/^V([0-1])?/i,                 this.valueCmd, "verbose"   ) ||
 			execActionIfCmdMatches(/^X([0-1])?/i,                 this.valueCmd, "smart"     ) ||
-			execActionIfCmdMatches(/^Z0?/i,                       this.resetCmd              ) ||
+			execActionIfCmdMatches(/^Z0?/i,                       this.reset                 ) ||
 			execActionIfCmdMatches(/^S([0-9]*)(\?|\=([0-9]+))?/i, this.registerCmd           ) ||
-			execActionIfCmdMatches(/^F[0-9]/i,                    this.resetCmd              ) || // Non-standard?
+			execActionIfCmdMatches(/^F[0-9]/i,                    this.reset                 ) || // Non-standard?
 			error();
 		}
 
@@ -256,7 +291,7 @@ class Modem {
 	}
 
 	processCharacter(c) {
-		if(this.commandMode) {
+		if(this.mode == this.Mode.COMMAND) {
 			if(this.echo) {
 				this._print(c);
 			}
@@ -287,7 +322,12 @@ class Modem {
 			if(c == '+' && (Date.now() - this.lastCharTime) > this.guardTime) {
 				this.escapeCount++;
 				if(this.escapeCount == 3) {
-					this.timer = window.setTimeout(commandMode, this.guardTime);
+					var me = this;
+					this.timer = window.setTimeout(function() {
+						me.setMode(me.Mode.COMMAND);
+						me.cmdOk();
+						me.sendLastCmdResult();
+					}, this.guardTime);
 				}
 			} else {
 				if(this.timer) {

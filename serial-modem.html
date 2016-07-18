@@ -36,7 +36,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 		#exchange > DIV {
 			display:			none;
 		}
-		
+
 	</style>
 	<div id="exchange">
 		<div id="offline">
@@ -70,7 +70,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 <script>
 (function(namespace, thisDoc){
 	var shadowRoot;
-	
+
 	/* In order to get data in and out of the emulator, we create a virtual character device
 	 * in the Emscripten filesystem. We then have the PCE emulator use the posix character
 	 * driver to read and write to that file.
@@ -80,11 +80,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 			this.characterAvailableCallback = characterAvailableCallback;
 			this.availableData = "";
 		}
-		
+
 		sendDataToSerialPort(data) {
 			this.availableData += data;
 		}
-		
+
 		createFile(file) {
 			var me = this;
 			function serialWrite(stream, buffer, offset, length, position) {
@@ -94,7 +94,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 				}
 				return length;
 			}
-			
+
 			function serialRead(stream, buffer, offset, length, position) {
 				if(me.availableData.length) {
 					if(length > me.availableData.length) {
@@ -109,29 +109,30 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 					return 0;
 				}
 			}
-			
+
 			console.log("Created serial device file", file);
-						
+
 			var ops = {
 				read:   serialRead,
 				write:  serialWrite
 			};
-			
+
 			var id = FS.makedev(64, 0);
 			FS.registerDevice(id, ops);
 			FS.mkdev(file, id);
 		}
 	}
-	
+
 	var TelephoneLine = class {
-		constructor(networkDataCallback) {
-			this.startNum				= 5550100; // Map to fictional PSTN numbers
-			this.finalNum				= 5550199;
-			this.tryNum					= this.startNum;
-			this.joined					= false;
-			this.networkDataCallback	= networkDataCallback;
-			this.conn					= null;
-			
+		constructor(networkDataCallback, connectionClosedCallback) {
+			this.startNum				    = 5550100; // Map to fictional PSTN numbers
+			this.finalNum				    = 5550199;
+			this.tryNum					    = this.startNum;
+			this.joined					    = false;
+			this.networkDataCallback	    = networkDataCallback;
+			this.connectionClosedCallback	= connectionClosedCallback;
+			this.conn					    = null;
+
 			this.setStatus('offline');
 		}
 
@@ -139,9 +140,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 		 * a number. That is, it tries creating peer.js with peerIds for each
 		 * to successive virtual phone number until it finds one that is free.
 		 */
-		joinExchange() {
+		joinExchange(callback) {
 			var me = this;
-			
+
 			function errorFunc(err) {
 				console.log(err.type);
 				if(err.type == 'unavailable-id') {
@@ -151,11 +152,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 					shadowRoot.getElementById('errorType').innerHTML = err.type;
 				}
 			}
-			
+
 			function tryNextNumber() {
 				me.tryNum++;
 				if(me.tryNum <= me.finalNum) {
-					me.joinExchange();
+					me.joinExchange(callback);
 				}
 			}
 
@@ -165,65 +166,98 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 			this.peer.on('error', errorFunc);
 			this.peer.on('open', function(id) {
 				console.log("Joined exchange with id ", id);
+				me.id = id;
 				me.setStatus('joined');
 				me.joined = true;
 				shadowRoot.getElementById('localPhoneNumber').innerHTML = me.phoneStr;
 				me.peer.on('connection', function(conn) {me.processPeerConnection(conn);});
+				if(callback) {
+					callback();
+				}
 			});
 		}
-		
+
 		processPeerConnection(newConnection) {
-			console.log("Processing new connection");
-			var me = this;
-			this.setStatus('connected');
-			this.conn = newConnection;
-			// Receive messages
-			this.conn.on('data', function(data) {me.receiveNetworkData(data);});
+			if(this.conn) {
+				/* If we are already connected, reject the new connection */
+				console.log("Rejecting connection, already connected");
+				window.setTimeout(function() {newConnection.send({type: "busy"});},2000);
+			} else {
+				console.log("Accepting connection");
+				var me = this;
+				this.setStatus('connected');
+				this.conn = newConnection;
+				this.conn.on('data',  function(data) {me.receiveNetworkData(data);});
+				this.conn.on('close', function()     {me.connectionClosedCallback();});
+			}
 		}
-		
+
 		receiveNetworkData(data) {
-			if(typeof data == 'object' && data.type == "offhook") {
+			if(typeof data == 'object' && (data.type == "offhook" || data.type == "busy")) {
 				this.stopRinging();
 			}
 			this.networkDataCallback(data);
 		}
-		
+
 		sendNetworkData(data) {
 			if(this.conn) {
 				this.conn.send(data);
 			}
 		}
-		
-		sendOffhook() {
-			this.conn.send({type:"offhook"});
+
+		onHook() {
+			if(this.conn) {
+				this.sendNetworkData({type:"onhook"});
+				this.conn.close();
+				this.conn = null;
+			}
+			this.setStatus('joined');
 		}
-		
+
+		offHook() {
+			this.sendNetworkData({type:"offhook"});
+		}
+
 		startRinging() {
 			var me = this;
 			if(this.conn) {
 				this.ringInterval = window.setInterval(function() {me.sendNetworkData({type:"ring"});}, 1000);
 			}
 		}
-		
+
 		stopRinging() {
 			if(this.ringInterval) {
 				window.clearInterval(this.ringInterval);
 				this.ringInterval = null;
 			}
 		}
-	
+
 		connectToNumber(number) {
-			if(number.match(/55501[0-9][0-9]/)) {
-				var id = "retroweb" + number;
-				console.log("Connecting to peer", id);
-				this.conn = this.peer.connect(id);
-				this.processPeerConnection(this.conn);
-				this.startRinging();
+			if(this.joined) {
+				if(this.conn) {
+					this.conn.close();
+					this.conn = null;
+				}
+				if(number.match(/55501[0-9][0-9]/)) {
+					var id = "retroweb" + number;
+					if(id == this.id) {
+						console.log("Attempting to connect to self");
+						this.networkDataCallback({type: "busy"});
+					} else {
+						console.log("Connecting to peer", id);
+						this.processPeerConnection(this.peer.connect(id));
+						this.startRinging();
+					}
+				 } else {
+					console.log("Invalid number");
+				 }
 			 } else {
-				console.log("Invalid number");
+				console.log("Attempting to dial when not joined, joining.");
+				var me = this;
+				this.joinExchange(function() {me.connectToNumber(number)});
 			 }
 		}
-		
+
 		get phoneStr() {
 			if(this.joined) {
 				var asString = this.tryNum.toString();
@@ -232,7 +266,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 				return "000-0000";
 			}
 		}
-		
+
 		setStatus(status) {
 			if(this.status) {
 				shadowRoot.getElementById(this.status).style.display = "none";
@@ -242,8 +276,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 			shadowRoot.getElementById(this.status).style.display = "block";
 		}
 	}
-	
-    var SerialModemProto = Object.create(HTMLElement.prototype);
+
+	var SerialModemProto = Object.create(HTMLElement.prototype);
 
 	SerialModemProto.createdCallback = function() {
 		if(!this.parentNode || !this.parentNode.classList.contains('allowCustomElements')) {
@@ -262,9 +296,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 		function characterAvailableCallback(c) {
 			modem.processCharacter(c);
 		}
-		
+
 		/* Events FROM the Modem that go TO the SerialPort */
-		
+
 		function replyCallback(data) {
 			serialPort.sendDataToSerialPort(data);
 		}
@@ -274,26 +308,37 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 		function transmitCallback(data) {
 			phoneLine.sendNetworkData(data);
 		}
-		
+
 		function dialCallback(number) {
 			console.log("Dialing ", number);
 			phoneLine.connectToNumber(number);
 		}
+
+		function onHookCallback() {
+			phoneLine.onHook();
+		}
 		
-		function answerCallback() {
-			phoneLine.sendOffhook();
+		function offHookCallback() {
+			phoneLine.offHook();
 		}
 
 		/* Events FROM the TelephoneLine that go TO the Modem */
 
 		function networkDataCallback(data) {
 			if(typeof data == "object") {
+				console.log("Got network data object", data.type);
 				switch(data.type) {
 					case "ring":
 						modem.ring();
 						break;
-					case "offhook":
-						modem.connectionEstablished();
+					case "onhook":
+						modem.remoteIsOnHook();
+						break;
+					case "carrier":
+						modem.carrierDetected();
+						break;
+					case "busy":
+						modem.busySignal();
 						break;
 				}
 			} else {
@@ -301,10 +346,14 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 			}
 		}
 
+		function connectionClosedCallback() {
+			modem.remoteIsOnHook();
+		}
+
 		serialPort  = new EmscriptenSerialDevice(characterAvailableCallback);
-		modem       = new Modem(replyCallback, dialCallback, transmitCallback, answerCallback);
-		phoneLine   = new TelephoneLine(networkDataCallback);
-		
+		modem       = new Modem(replyCallback, dialCallback, transmitCallback, onHookCallback, offHookCallback);
+		phoneLine   = new TelephoneLine(networkDataCallback, connectionClosedCallback);
+
 		shadowRoot.getElementById("goOnline").addEventListener('click', function() {phoneLine.joinExchange();});
 		if(emulator) {
 			emulator.addEventListener("emscriptenPreInit", function() {
