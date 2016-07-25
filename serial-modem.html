@@ -20,9 +20,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 	<style>
 		#exchange {
 			text-align:			center;
-			font-size:			125%;
-			font-family: 		Arial, sans-serif;
-			font-weight:		bold;
 			width:				fit-content;
 			margin:				1em auto;
 		}
@@ -33,26 +30,81 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 		}
 
 		/* Show or hide DIVS depending on the data-status attribute */
-		#exchange > DIV {
+		#exchange > DIV.mode {
+			font-family: 		Arial, sans-serif;
 			display:			none;
+			font-size:			125%;
+			font-weight:		bold;
 		}
 
+		#miniTerm {
+			text-align:			left;
+			display:			none;
+			margin:				2em  0;
+			padding-bottom: 	10px;
+			box-shadow:			6px 6px 6px rgba(0,0,0,0.45);
+			border:				1px solid #555;
+			background:			#ccf;
+			border-radius:		10px;
+		}
+
+		#miniTerm input {
+			margin-left:		10px;
+		}
+
+		#miniTerm button {
+			margin:				10px;
+			margin-right:		0px;
+		}
+
+		#terminal {
+			margin:				0 15px;
+			font-size:			10px;
+			background:			black;
+			color:				gold;
+		}
+
+		#showMiniTerm {
+			font-size:			9pt;
+			text-decoration:	none;
+			top:				0px
+			width:				100%;
+			color:				purple;
+			font-weight:		bold;
+		}
+
+		.closeBtn {
+			float:				right;
+			font-size:			125%;
+			margin-right:		15px;
+			margin-top:			5px;
+			color:				#555;
+			cursor:				pointer;
+		}
 	</style>
 	<div id="exchange">
-		<div id="offline">
+		<div id="offline" class="mode">
 			<a id="goOnline">Give me a virtual phone number!</a>
 		</div>
-		<div id="joining">
+		<div id="joining" class="mode">
 			Contacting the RetroWeb Telephone Exchange.
 		</div>
-		<div id="joined">
+		<div id="joined" class="mode">
 			Your virtual number is <span id="localPhoneNumber"></span>
+			<br>
 		</div>
-		<div id="error">
+		<div id="error" class="mode">
 			Cannot join the RetroWeb Telephone Exchange (<span id="errorType"></span>)
 		</div>
-		<div id="connected">
+		<div id="connected" class="mode">
 			Connected to remote computer!
+		</div>
+		<a id="showMiniTerm">Show Terminal</a>
+		<div id="miniTerm">
+			<span class="closeBtn">&#x2716;</span>
+			<input type="text" id="numberToDial" placeholder="Number to dial" size="11"><button>Dial</button>
+			<label><input type="checkbox" id="autoAnswer">Auto Answer</label><br>
+			<textarea rows="18" cols="60" id="terminal" readonly></textarea>
 		</div>
 	</div>
 </template>
@@ -69,59 +121,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 <script>
 (function(namespace, thisDoc){
-	var shadowRoot;
-
-	/* In order to get data in and out of the emulator, we create a virtual character device
-	 * in the Emscripten filesystem. We then have the PCE emulator use the posix character
-	 * driver to read and write to that file.
-	 */
-	var EmscriptenSerialDevice = class {
-		constructor(characterAvailableCallback) {
-			this.characterAvailableCallback = characterAvailableCallback;
-			this.availableData = "";
-		}
-
-		sendDataToSerialPort(data) {
-			this.availableData += data;
-		}
-
-		createFile(file) {
-			var me = this;
-			function serialWrite(stream, buffer, offset, length, position) {
-				for(var i = 0; i < length; i++) {
-					var data = buffer[offset+i];
-					me.characterAvailableCallback(String.fromCharCode(data));
-				}
-				return length;
-			}
-
-			function serialRead(stream, buffer, offset, length, position) {
-				if(me.availableData.length) {
-					if(length > me.availableData.length) {
-						length = me.availableData.length;
-					}
-					for(var i = 0; i < length; i++) {
-						buffer[offset+i] = me.availableData.charCodeAt(i);
-					}
-					me.availableData = "";
-					return length;
-				} else {
-					return 0;
-				}
-			}
-
-			console.log("Created serial device file", file);
-
-			var ops = {
-				read:   serialRead,
-				write:  serialWrite
-			};
-
-			var id = FS.makedev(64, 0);
-			FS.registerDevice(id, ops);
-			FS.mkdev(file, id);
-		}
-	}
+	var shadowRoot, miniTermVisible = false;
 
 	var TelephoneLine = class {
 		constructor(networkDataCallback, connectionClosedCallback) {
@@ -289,7 +289,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 		shadowRoot = this.createShadowRoot();
 		shadowRoot.appendChild(clone);
 
-		var serialPort, phoneLine, modem;
+		var phoneLine, modem, terminal;
 
 		/* Events FROM the SerialPort that go TO the Modem */
 		
@@ -300,7 +300,10 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 		/* Events FROM the Modem that go TO the SerialPort */
 
 		function replyCallback(data) {
-			serialPort.sendDataToSerialPort(data);
+			if(miniTermVisible) {
+				terminal.value += data.replace('\r','');
+			}
+			emulator.sendSerialDataToEmulator(data);
 		}
 
 		/* Events FROM the Modem that go TO the TelephoneLine */
@@ -350,17 +353,55 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 			modem.remoteIsOnHook();
 		}
 
-		serialPort  = new EmscriptenSerialDevice(characterAvailableCallback);
+		if(emulator) {
+			emulator.setSerialCallback(characterAvailableCallback);
+		} else {
+			console.log("Unable to locate emulator object");
+		}
 		modem       = new Modem(replyCallback, dialCallback, transmitCallback, onHookCallback, offHookCallback);
 		phoneLine   = new TelephoneLine(networkDataCallback, connectionClosedCallback);
 
 		shadowRoot.getElementById("goOnline").addEventListener('click', function() {phoneLine.joinExchange();});
-		if(emulator) {
-			emulator.addEventListener("emscriptenPreInit", function() {
-				serialPort.createFile("ser_a.io");
-			});
+
+		if(!this.classList.contains("no-miniterm")) {
+			function dialNumber() {
+				modem.processString("ATDT" + shadowRoot.getElementById("numberToDial").value + '\r');
+			}
+			function autoAnswer() {
+				if(miniTerm.querySelector("#autoAnswer").checked) {
+					modem.processString("ATS0=1\r");
+				} else {
+					modem.processString("ATS0=0\r");
+				}
+			}
+			var miniTerm = shadowRoot.getElementById("miniTerm");
+			miniTerm.querySelector("button").addEventListener('click', dialNumber);
+			miniTerm.querySelector("#autoAnswer").addEventListener('click', autoAnswer);
+
+			terminal = miniTerm.querySelector("#terminal");
+			var showMiniTermLink = shadowRoot.querySelector("#showMiniTerm");
+
+			showMiniTermLink.addEventListener('click', showMiniTerm);
+			shadowRoot.querySelector(".closeBtn").addEventListener('click', hideMiniTerm);
+
+			function showMiniTerm(e) {
+				miniTermVisible = true;
+				miniTerm.style.display = "inline-block";
+				showMiniTermLink.style.display = "none";
+				e.preventDefault();
+				e.stopPropagation();
+			}
+
+			function hideMiniTerm(e) {
+				miniTermVisible = false;
+				miniTerm.style.display = "none";
+				showMiniTermLink.style.display = "inline-block";
+				e.preventDefault();
+				e.stopPropagation();
+			}
 		} else {
-			console.log("Unable to locate emulator object");
+			var showMiniTermLink = shadowRoot.querySelector("#showMiniTerm");
+			showMiniTermLink.style.display = "none";
 		}
 	}
 

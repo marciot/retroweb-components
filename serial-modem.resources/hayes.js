@@ -49,6 +49,10 @@ class Modem {
 		this.registerValues[1] = value;
 	}
 
+	get isCommandMode() {
+		return this.mode == this.Mode.COMMAND;
+	}
+
 	_print(str) {
 		this.replyCallback(str);
 	}
@@ -72,6 +76,7 @@ class Modem {
 	answer() {
 		this.offHookCallback();
 		this.sendCarrierSignal();
+		this.ringCounter = 0;
 	}
 
 	remoteIsOnHook() {
@@ -241,7 +246,7 @@ class Modem {
 		this.cmdOk();
 	}
 
-	processCommand(command) {
+	execCommand(command) {
 		this.cmdResult = null;
 		this.lastCommand = command;
 		console.log("Modem command:", command);
@@ -290,6 +295,12 @@ class Modem {
 		this.sendLastCmdResult();
 	}
 
+	processString(str) {
+		for(var i = 0; i < str.length; i++) {
+			this.processCharacter(str[i]);
+		}
+	}
+
 	processCharacter(c) {
 		if(this.mode == this.Mode.COMMAND) {
 			if(this.echo) {
@@ -297,7 +308,7 @@ class Modem {
 			}
 			switch(c) {
 				case this.cr:
-					this.processCommand(this.cmdBuffer);
+					this.execCommand(this.cmdBuffer);
 					this.cmdBuffer = "";
 					break;
 				case this.bs:
@@ -311,7 +322,7 @@ class Modem {
 				default:
 					this.cmdBuffer += c;
 					if(this.cmdBuffer == "A/" || this.cmdBuffer == "a/") {
-						this.processCommand(this.lastCommand);
+						this.execCommand(this.lastCommand);
 						this.cmdBuffer = "";
 					}
 					break;
