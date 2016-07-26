@@ -25,18 +25,14 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 	 * but that only works in Chrome and not Firefox */
 
 	file-icons {
-		/* For Safari, see https://developer.mozilla.org/en-US/docs/CSS/width */
-		width:					intrinsic;
-		width:					-moz-fit-content;
-		width:					-webkit-fit-content;
-		width:					fit-content;
-
 		/* By default, center icons on page */
-		display:				block;
-		margin: 				0px auto;
+		display:					block;
+		text-align:					center;
+		margin:						10px 0;
 	}
 
-	file-icons OL, UL {
+	file-icons OL, file-icons UL {
+		display:				inline-block;
 		padding: 				0px;
 		margin: 				0px;
 		overflow: 				auto;
@@ -134,7 +130,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 		background-image: url('artwork/upload.png');
 	}
 
-	file-icons A.enter-url:before {
+	file-icons A.enter-url:before,
+	file-icons A.world:before {
 		background-image: url('artwork/world.png');
 	}
 
