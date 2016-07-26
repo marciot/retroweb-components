@@ -25,14 +25,16 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 	 * but that only works in Chrome and not Firefox */
 
 	file-icons {
-		/* By default, center icons on page */
 		display:					block;
 		text-align:					center;
-		margin:						10px 0;
+		margin:						15px 0;
 	}
 
+	/* inline-block here and 'text-align: center' on our parent
+	   centers us horizontally */
 	file-icons OL, file-icons UL {
 		display:				inline-block;
+
 		padding: 				0px;
 		margin: 				0px;
 		overflow: 				auto;

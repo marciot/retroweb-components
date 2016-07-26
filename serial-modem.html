@@ -18,10 +18,12 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 -->
 <template id="SerialModemTemplate">
 	<style>
+		/* inline-block here and 'text-align: center' on our parent
+		   centers us horizontally */
 		#exchange {
-			text-align:			center;
-			width:				fit-content;
-			margin:				1em auto;
+			display:				inline-block;
+
+			text-align:				center;
 		}
 
 		#exchange H1 {
@@ -110,8 +112,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 </template>
 
 <style>
-		peer-serial {
-			display:	block;
+		serial-modem {
+			display:					block;
+			text-align:					center;
 		}
 </style>
 
