@@ -2,6 +2,9 @@
 	<head>
 		<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/webcomponentsjs/0.7.22/webcomponents.min.js"></script>
 
+		<!-- Contains my peer.js key, please do not use this in your code -->
+		<script type="text/javascript" src="private.js"></script>
+
 		<link rel="import" href="find-base-dir.html">
 		<link rel="import" href="inline-svg.html">
 		<link rel="import" href="animated-zoom.html">
@@ -9,6 +12,7 @@
 		<link rel="import" href="emulator-popups.html">
 		<link rel="import" href="emulator-skin.html">
 		<link rel="import" href="file-icons.html">
+		<link rel="import" href="serial-modem.html">
 		<style>
 
 			body {
@@ -127,6 +131,10 @@
 				-webkit-column-count: 3; /* Chrome, Safari, Opera */
 				-moz-column-count: 3; /* Firefox */
 				column-count: 3;
+			}
+
+			serial-modem {
+				margin-top: 2em;
 			}
 		</style>
 	</head>
@@ -419,6 +427,50 @@
 			</tr>
 
 			<!-- ---------------------------------------------------------- -->
+
+			<tr>
+				<th>
+					<div class="allowCustomElements">
+						<!-- If using this code, please replace with your own PeerJS Cloud API key from http://peerjs.com/peerserver -->
+						<serial-modem peer-config='{"key":"u7htss9n8pz257b9"}'></serial-modem>
+					</div>
+				</th>
+				<td>
+					<h2>serial-modem</h2>
+					<p>
+					Uses <a href="http://peerjs.com/">peer.js</a> to establish a simulated dial up connection through <a href="https://webrtc.org/">WebRTC</a> between two browser windows (possibly across the world).
+					</p>
+					<p>
+					Automatically assigns a virtual phone number for the user, implements the Hayes command set for control and supports a terminal widget for interaction.
+					</p>
+<pre>
+&lt;serial-modem peer-config='{&quot;key&quot;:&quot;your-peerjs-cloud-key&quot;}'&gt;
+&lt;/serial-modem&gt;
+</pre>
+
+					<h3>JavaScript Methods:</h3>
+					<dl>
+						<dt>setReceiveDataCallback(function (data) {...})</dt>
+						<dd>Sets a function to be called when data is available from the remote end (when online) or the command interpreter (when in command mode)</dd>
+						<dt>sendData(data)</dt>
+						<dd>Sends data to the remote end (when online) or the command interpreter (when in command mode)</dd>
+					</dl>
+
+					<h3>Element Attributes:</h3>
+					<dl>
+						<dt>peer-config</dt>
+						<dd>JSON string containing option argument for PeerJS Peer object, which generally will contain your <a href="http://peerjs.com/peerserver">PeerJS Cloud key</a>, or connection info for your private PeerServer. Alternatively, you may set <code>RetroWeb.peerJSConfig</code> to a JavaScript object.</dd>
+						<dt>class</dt>
+						<dd>If "no-terminal" is present, the terminal will be inaccessible.<br>
+						If "hide-terminal" is present, the terminal will start out hidden and a "Show Terminal" link will be present.
+						</dd>
+					</dl>
+
+				</td>
+			</tr>
+
+			<!-- ---------------------------------------------------------- -->
+
 
 			<tr>
 				<th colspan="2" class="footer">

@@ -39,9 +39,13 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 			font-weight:		bold;
 		}
 
+		#offline {
+			cursor:				pointer;
+		}
+
 		#miniTerm {
 			text-align:			left;
-			display:			none;
+			display:			inline-block;
 			margin:				2em  0;
 			padding-bottom: 	10px;
 			box-shadow:			6px 6px 6px rgba(0,0,0,0.45);
@@ -67,12 +71,14 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 		}
 
 		#showMiniTerm {
+			display:			none;
 			font-size:			9pt;
 			text-decoration:	none;
-			top:				0px
 			width:				100%;
 			color:				purple;
 			font-weight:		bold;
+			margin-top:			1em;
+			cursor:				pointer;
 		}
 
 		.closeBtn {
@@ -106,7 +112,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 			<span class="closeBtn">&#x2716;</span>
 			<input type="text" id="numberToDial" placeholder="Number to dial" size="11"><button>Dial</button>
 			<label><input type="checkbox" id="autoAnswer">Auto Answer</label><br>
-			<textarea rows="18" cols="60" id="terminal" readonly></textarea>
+			<textarea rows="18" cols="60" id="terminal"></textarea>
 		</div>
 	</div>
 </template>
@@ -118,16 +124,16 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 		}
 </style>
 
-<!--<script src="http://cdn.peerjs.com/0.3/peer.min.js"></script>-->
-<script src="http://cdn.peerjs.com/0.3/peer.js"></script>
+<script src="http://cdn.peerjs.com/0.3/peer.min.js"></script>
+<!--<script src="http://cdn.peerjs.com/0.3/peer.js"></script>-->
 <script src="serial-modem.resources/hayes.js"></script>
 
 <script>
 (function(namespace, thisDoc){
-	var shadowRoot, miniTermVisible = false;
+	var shadowRoot;
 
 	var TelephoneLine = class {
-		constructor(networkDataCallback, connectionClosedCallback) {
+		constructor(peerOptions, networkDataCallback, connectionClosedCallback) {
 			this.startNum				    = 5550100; // Map to fictional PSTN numbers
 			this.finalNum				    = 5550199;
 			this.tryNum					    = this.startNum;
@@ -135,6 +141,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 			this.networkDataCallback	    = networkDataCallback;
 			this.connectionClosedCallback	= connectionClosedCallback;
 			this.conn					    = null;
+			this.peerOptions                = peerOptions;
 
 			this.setStatus('offline');
 		}
@@ -147,11 +154,10 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 			var me = this;
 
 			function errorFunc(err) {
-				console.log(err.type);
 				if(err.type == 'unavailable-id') {
 					window.setTimeout(tryNextNumber, 10);
 				} else {
-					me.setStatus('error');
+					me.setStatus('error', err.type);
 					shadowRoot.getElementById('errorType').innerHTML = err.type;
 				}
 			}
@@ -164,11 +170,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 			}
 
 			var id = "retroweb" + this.tryNum;
-			console.log("Attempting to join exchange with id ", id);
-			this.peer = new Peer(id, {key: 'u7htss9n8pz257b9'});
+			console.log("serial-modem: Attempting to join exchange with id ", id);
+			this.peer = new Peer(id, this.peerOptions);
 			this.peer.on('error', errorFunc);
 			this.peer.on('open', function(id) {
-				console.log("Joined exchange with id ", id);
+				console.log("serial-modem: Joined exchange with id ", id);
 				me.id = id;
 				me.setStatus('joined');
 				me.joined = true;
@@ -183,10 +189,10 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 		processPeerConnection(newConnection) {
 			if(this.conn) {
 				/* If we are already connected, reject the new connection */
-				console.log("Rejecting connection, already connected");
+				console.log("serial-modem: Rejecting connection, already connected");
 				window.setTimeout(function() {newConnection.send({type: "busy"});},2000);
 			} else {
-				console.log("Accepting connection");
+				console.log("serial-modem: Accepting connection");
 				var me = this;
 				this.setStatus('connected');
 				this.conn = newConnection;
@@ -244,18 +250,18 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 				if(number.match(/55501[0-9][0-9]/)) {
 					var id = "retroweb" + number;
 					if(id == this.id) {
-						console.log("Attempting to connect to self");
+						console.log("serial-modem: Attempting to connect to self");
 						this.networkDataCallback({type: "busy"});
 					} else {
-						console.log("Connecting to peer", id);
+						console.log("serial-modem: Connecting to peer", id);
 						this.processPeerConnection(this.peer.connect(id));
 						this.startRinging();
 					}
 				 } else {
-					console.log("Invalid number");
+					console.log("serial-modem: Invalid number");
 				 }
 			 } else {
-				console.log("Attempting to dial when not joined, joining.");
+				console.log("serial-modem: Attempting to dial when not joined, joining.");
 				var me = this;
 				this.joinExchange(function() {me.connectToNumber(number)});
 			 }
@@ -275,7 +281,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 				shadowRoot.getElementById(this.status).style.display = "none";
 			}
 			this.status = status;
-			console.log("Setting status to", status);
 			shadowRoot.getElementById(this.status).style.display = "block";
 		}
 	}
@@ -283,30 +288,41 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 	var SerialModemProto = Object.create(HTMLElement.prototype);
 
 	SerialModemProto.createdCallback = function() {
+		var me = this;
+
 		if(!this.parentNode || !this.parentNode.classList.contains('allowCustomElements')) {
 			return;
 		}
+
+		this.characterAvailableCallback = null;
+		this.miniTermVisible = true;
 
 		var t = thisDoc.getElementById('SerialModemTemplate');
 		var clone = document.importNode(t.content, true);
 		shadowRoot = this.createShadowRoot();
 		shadowRoot.appendChild(clone);
 
-		var phoneLine, modem, terminal;
+		var phoneLine, terminal;
 
-		/* Events FROM the SerialPort that go TO the Modem */
-		
-		function characterAvailableCallback(c) {
-			modem.processCharacter(c);
-		}
-
-		/* Events FROM the Modem that go TO the SerialPort */
+		/* Events FROM the Modem that go TO the Emulator */
 
 		function replyCallback(data) {
-			if(miniTermVisible) {
-				terminal.value += data.replace('\r','');
+			if(me.miniTermVisible) {
+				for(var i = 0; i < data.length; i++) {
+					switch(data[i]) {
+						case '\b':
+							terminal.value = terminal.value.substr(0, terminal.value.length-1);
+							break;
+						case '\r':
+							break;
+						default:
+							terminal.value += data[i];
+					}
+				}
 			}
-			emulator.sendSerialDataToEmulator(data);
+			if(me.characterAvailableCallback) {
+				me.characterAvailableCallback(data);
+			}
 		}
 
 		/* Events FROM the Modem that go TO the TelephoneLine */
@@ -316,7 +332,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 		}
 
 		function dialCallback(number) {
-			console.log("Dialing ", number);
 			phoneLine.connectToNumber(number);
 		}
 
@@ -332,81 +347,110 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 		function networkDataCallback(data) {
 			if(typeof data == "object") {
-				console.log("Got network data object", data.type);
+				console.log("serial-modem: Got network data object", data.type);
 				switch(data.type) {
 					case "ring":
-						modem.ring();
+						me.modem.ring();
 						break;
 					case "onhook":
-						modem.remoteIsOnHook();
+						me.modem.remoteIsOnHook();
 						break;
 					case "carrier":
-						modem.carrierDetected();
+						me.modem.carrierDetected();
 						break;
 					case "busy":
-						modem.busySignal();
+						me.modem.busySignal();
 						break;
 				}
 			} else {
-				modem.dataFromRemote(data);
+				me.modem.dataFromRemote(data);
 			}
 		}
 
 		function connectionClosedCallback() {
-			modem.remoteIsOnHook();
+			me.modem.remoteIsOnHook();
 		}
 
-		if(emulator) {
-			emulator.setSerialCallback(characterAvailableCallback);
+		if(typeof emulator !== "undefined") {
+			/* If an emulator object is defined, automatically link up to it */
+			var me = this;
+			emulator.setSerialCallback(function(c) {me.sendData(c);});
+			this.setDataReceivedCallback(function(data) {emulator.sendSerialDataToEmulator(data)});
 		} else {
-			console.log("Unable to locate emulator object");
 		}
-		modem       = new Modem(replyCallback, dialCallback, transmitCallback, onHookCallback, offHookCallback);
-		phoneLine   = new TelephoneLine(networkDataCallback, connectionClosedCallback);
+
+		var peerConfig  = this.getAttribute('peer-config');
+		var peerOptions = peerConfig ? JSON.parse(peerConfig) : namespace.peerJSConfig;
+
+		this.modem       = new Modem(replyCallback, dialCallback, transmitCallback, onHookCallback, offHookCallback);
+		phoneLine   = new TelephoneLine(peerOptions, networkDataCallback, connectionClosedCallback);
 
 		shadowRoot.getElementById("goOnline").addEventListener('click', function() {phoneLine.joinExchange();});
 
-		if(!this.classList.contains("no-miniterm")) {
+		if(!this.classList.contains("no-terminal")) {
 			function dialNumber() {
-				modem.processString("ATDT" + shadowRoot.getElementById("numberToDial").value + '\r');
+				me.modem.processString("ATDT" + shadowRoot.getElementById("numberToDial").value + '\r');
 			}
 			function autoAnswer() {
 				if(miniTerm.querySelector("#autoAnswer").checked) {
-					modem.processString("ATS0=1\r");
+					me.modem.processString("ATS0=1\r");
 				} else {
-					modem.processString("ATS0=0\r");
+					me.modem.processString("ATS0=0\r");
 				}
 			}
 			var miniTerm = shadowRoot.getElementById("miniTerm");
 			miniTerm.querySelector("button").addEventListener('click', dialNumber);
 			miniTerm.querySelector("#autoAnswer").addEventListener('click', autoAnswer);
 
+			function stopEvent(e) {
+				if(e) {
+					e.preventDefault();
+					e.stopPropagation();
+				}
+			}
+
 			terminal = miniTerm.querySelector("#terminal");
+			terminal.addEventListener('keydown', function(e) {
+				stopEvent(e);
+				me.sendData(String.fromCharCode(e.which));
+			});
 			var showMiniTermLink = shadowRoot.querySelector("#showMiniTerm");
 
 			showMiniTermLink.addEventListener('click', showMiniTerm);
 			shadowRoot.querySelector(".closeBtn").addEventListener('click', hideMiniTerm);
 
 			function showMiniTerm(e) {
-				miniTermVisible = true;
+				me.miniTermVisible = true;
 				miniTerm.style.display = "inline-block";
 				showMiniTermLink.style.display = "none";
-				e.preventDefault();
-				e.stopPropagation();
+				stopEvent(e);
 			}
 
 			function hideMiniTerm(e) {
-				miniTermVisible = false;
+				me.miniTermVisible = false;
 				miniTerm.style.display = "none";
 				showMiniTermLink.style.display = "inline-block";
-				e.preventDefault();
-				e.stopPropagation();
+				stopEvent(e);
+			}
+
+			if(this.classList.contains("hide-terminal")) {
+				hideMiniTerm();
 			}
 		} else {
 			var showMiniTermLink = shadowRoot.querySelector("#showMiniTerm");
 			showMiniTermLink.style.display = "none";
 		}
 	}
+
+	Object.defineProperty(SerialModemProto, "peer-config", {writable: true});
+
+	SerialModemProto.setDataReceivedCallback = function(callback) {
+		this.characterAvailableCallback = callback;
+	};
+
+	SerialModemProto.sendData = function(data) {
+		this.modem.processString(data);
+	};
 
 	var SerialModem = document.registerElement('serial-modem', {prototype: SerialModemProto});
 })(window.RetroWeb = window.RetroWeb || {}, (document._currentScript || document.currentScript).ownerDocument);

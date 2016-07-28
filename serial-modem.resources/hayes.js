@@ -59,7 +59,7 @@ class Modem {
 
 	ring() {
 		this.ringCounter++;
-		if(this.autoAnswer != 0 && this.ringCounter == this.autoAnswer) {
+		if(this.autoAnswer != 0 && this.ringCounter >= this.autoAnswer) {
 			this.answer();
 		} else {
 			this.cmdResultCode(2, "RING");
@@ -77,6 +77,7 @@ class Modem {
 		this.offHookCallback();
 		this.sendCarrierSignal();
 		this.ringCounter = 0;
+		this.cmdResult = null; /* ATA does not return OK */
 	}
 
 	remoteIsOnHook() {
@@ -155,7 +156,7 @@ class Modem {
 	}
 
 	cmdInfoText(text) {
-		this.cmdResult = {text: "OK", isInfo: true};
+		this.cmdResult = {text: text, isInfo: true};
 	}
 
 	cmdResultCode(code, text) {
@@ -181,7 +182,6 @@ class Modem {
 					this._print(this.cmdResult.code + this.cr);
 				}
 			}
-			console.log("Modem reply: ", this.cmdResult.text);
 			this.cmdResult = null;
 		}
 	}
@@ -190,6 +190,7 @@ class Modem {
 	dialCmd(matchSet) {
 		var dialStr = matchSet[2];
 		this.dialCallback(dialStr.replace(/[^0-9]/,''));
+		this.cmdResult = null; /* ATDT does not return OK */
 	}
 
 	onlineCmd(matchSet) {
@@ -240,7 +241,6 @@ class Modem {
 				break;
 			case '=':
 				this.registerValues[this.selectedRegister] = value;
-				console.log("Setting register", this.selectedRegister, "to", value);
 				break;
 		}
 		this.cmdOk();
@@ -249,7 +249,6 @@ class Modem {
 	execCommand(command) {
 		this.cmdResult = null;
 		this.lastCommand = command;
-		console.log("Modem command:", command);
 
 		var me = this;
 		function error() {
@@ -271,7 +270,7 @@ class Modem {
 			return match;
 		}
 
-		execActionIfCmdMatches(/^AT/i) ||
+		execActionIfCmdMatches(/^AT/i, this.cmdOk) ||
 		error();
 
 		while(command.length) {
