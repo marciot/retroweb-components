@@ -410,6 +410,14 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 			terminal = miniTerm.querySelector("#terminal");
 			terminal.addEventListener('keydown', function(e) {
+				/* Special handler for backspace, since keypress
+				   does not catch those */
+				if(e.which == 8) {
+					stopEvent(e);
+					me.sendData('\b');
+				}
+			});
+			terminal.addEventListener('keypress', function(e) {
 				stopEvent(e);
 				me.sendData(String.fromCharCode(e.which));
 			});
