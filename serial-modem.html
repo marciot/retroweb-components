@@ -373,7 +373,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 		if(typeof emulator !== "undefined") {
 			/* If an emulator object is defined, automatically link up to it */
 			var me = this;
-			emulator.setSerialCallback(function(c) {me.sendData(c);});
+			emulator.setSerialDataAvailableCallback(function(c) {me.sendData(c);});
 			this.setDataReceivedCallback(function(data) {emulator.sendSerialDataToEmulator(data)});
 		} else {
 		}
