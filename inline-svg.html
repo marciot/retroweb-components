@@ -58,23 +58,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 			src = src.replace("$RETROWEB_COMPONENTS_PATH", retroWebComponentsPath);
 		}
 
-		var me = this;
 		var request = new XMLHttpRequest();
 		request.open('GET', src, true);
-		request.responseType = 'document';
 		request.onload = function() {
-			if (request.status >= 200 && request.status < 400) {
-				// Get the SVG tag, ignore the rest
-				var svg = request.responseXML.getElementsByTagName('svg')[0];
-
-				// Remove any invalid XML tags as per http://validator.w3.org
-				svg.removeAttribute('xmlns:a');
-
-				/* The following line won't work in Firefox. Implemented fix similar to what
-				 * warpech did here https://github.com/Juicy/juicy-svg-injector/blob/gh-pages/vendor/svg-injector.js
-				 * $(shadowRoot).append($svg);
-				 */
-				shadowRoot.innerHTML += svg.outerHTML;
+			if (request.status >= 200 && request.status < 400 && request.response) {
+				shadowRoot.innerHTML += request.response;
 			} else {
 				console.log("Error in inline-svg", request.status);
 			}

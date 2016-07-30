@@ -197,20 +197,22 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 		
 		/* Locate the zoomTarget, the animated-zoom object to which zooming in applies */
 		var zoomAttr   = me.getAttribute('zoomTarget');
-		var zoomTarget = (zoomAttr ? me.closest('#'+zoomAttr) : me.closest('animated-zoom'));
-		if(typeof zoomTarget.zoomIn == 'undefined') {
-			/* Looks like WebComponents isn't properly wrapping the closest method */
-			zoomTarget = wrap(zoomTarget);
-		}
+		if(me.closest) {
+			var zoomTarget = (zoomAttr ? me.closest('#'+zoomAttr) : me.closest('animated-zoom'));
+			if(typeof zoomTarget.zoomIn == 'undefined') {
+				/* Looks like WebComponents isn't properly wrapping the closest method */
+				zoomTarget = wrap(zoomTarget);
+			}
 
-		this.shadowRoot.querySelector("#zoomInBtn").addEventListener('click',function()  {
-			overlayActiveState(false);
-			zoomTarget.zoomIn();
-		});
-		this.shadowRoot.querySelector("#zoomOutBtn").addEventListener('click',function() {
-			zoomTarget.zoomOut();
-			overlayActiveState(true);
-		});
+			this.shadowRoot.querySelector("#zoomInBtn").addEventListener('click',function()  {
+				overlayActiveState(false);
+				zoomTarget.zoomIn();
+			});
+			this.shadowRoot.querySelector("#zoomOutBtn").addEventListener('click',function() {
+				zoomTarget.zoomOut();
+				overlayActiveState(true);
+			});
+		}
 
 		/* When the user clicks on the screen overlay, the overlay is hidden to reveal the
 		 * emulator screen underneath. Moving the mouse away from the screen area primes
