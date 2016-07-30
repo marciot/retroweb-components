@@ -231,15 +231,36 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 		}
 
 		/* Clicking on the screen clears .showOverlayOnHover and disables the overlay; moving
-		 * away from the screen triggers "mouseleave" to reenable the overlay. To work around a
-		 * Safari bug, I attach the 'mouseleave' action to #screen-container-inner to avoid
-		 * spurious events that would cause the overlay to reappear right after it was hidden.
+		 * away from the screen reenable the overlay after a delay. To work around a Safari
+		 * bug, I attach the 'mouseleave' action to #screen-container-inner to avoid spurious
+		 * event that would cause the overlay to reappear right after it was hidden.
 		 */
-		this.shadowRoot.querySelector("#screen-overlay-controls").addEventListener('click',
-			function() {overlayActiveState(false);});
-		this.shadowRoot.querySelector("#screen-container-inner").addEventListener('mouseleave', 
-			function() {if(!(zoomTarget && zoomTarget.isZoomed())) overlayActiveState(true);});
-		
+		var gracePeriodTimer = null;
+
+		function mouseClick() {
+			overlayActiveState(false);
+		}
+
+		function mouseEnter() {
+			if(gracePeriodTimer) {
+				window.clearTimeout(gracePeriodTimer);
+				gracePeriodTimer = null;
+			}
+		}
+
+		function mouseLeave() {
+			if(!(zoomTarget && zoomTarget.isZoomed())) {
+				gracePeriodTimer = window.setTimeout(function() {
+					gracePeriodTimer = null;
+					overlayActiveState(true);
+				}, 1000);
+			}
+		}
+
+		this.shadowRoot.querySelector("#screen-overlay-controls").addEventListener('click', mouseClick );
+		this.shadowRoot.querySelector("#screen-container-inner").addEventListener('mouseleave', mouseLeave);
+		this.shadowRoot.querySelector("#screen-container-inner").addEventListener('mouseenter', mouseEnter);
+
 		overlayActiveState(true);
 	}
 	
