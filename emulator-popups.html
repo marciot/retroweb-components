@@ -207,7 +207,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 		closeButtonAction("popup-mac-eject-disk", "mac-eject-ok-btn");
 		closeButtonAction("popup-uploader",       "uploader-cancel-btn");
-	}
+	};
 
     EmulatorPopupsProto.setVisibility = function(id, state) {
 		this.popups.setVisibility(id, state);
@@ -231,7 +231,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 			return false;
 		});
 		this.setVisibility("popup-uploader", true);
-	}
+	};
 
 	EmulatorPopupsProto.askForRom = function(callback) {
 		var me = this;
@@ -246,7 +246,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 			}
 		);
 		this.setVisibility("popup-rom-missing", true);
-	}
+	};
 
 	EmulatorPopupsProto.getNames = function() {
 		var popups = [];
@@ -255,7 +255,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 			popups.push(els[i].id);
 		}
 		return popups;
-	}
+	};
 
 	var EmulatorPopups = document.registerElement('emulator-popups', {prototype: EmulatorPopupsProto});
 	
@@ -308,6 +308,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 			}
 			this.setVisibleElement(topmost);
 		}
-	}
+	};
 })((document._currentScript || document.currentScript).ownerDocument);
 </script>

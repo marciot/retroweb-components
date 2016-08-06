@@ -142,11 +142,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 			console.log("Unable to load the skin " + skinPath);
 		};
 		request.send();
-	}
+	};
 
 	EmulatorSkinProto.getNames = function() {
 		return skinLibrary;
-	}
+	};
 
 	Object.defineProperty(EmulatorSkinProto, "name",  {writable: true});
 	Object.defineProperty(EmulatorSkinProto, "flush", {writable: true});

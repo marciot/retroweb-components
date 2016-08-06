@@ -68,11 +68,27 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 		}
 
 		#screen-overlay-controls inline-svg {
-			--path-color: 			darkGray;
+			--path-color:			darkGray;
 		}
 
 		#screen-overlay-controls inline-svg:hover {
 			--path-color: 			black;
+		}
+
+		#emulator-byline {
+			font-family:	"Gill Sans", "Gill Sans MT", Calibri, sans-serif;
+			color:			white;
+			position:		absolute;
+			bottom:			5px;
+			width:			100%;
+		}
+
+		#emulator-byline a:link {
+			color: yellow;
+		}
+
+		#emulator-byline a:visited {
+			color: yellow;
 		}
 
 		/* The following controls show up when in zoomed (i.e. full screen) mode */
@@ -123,6 +139,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 				<inline-svg src="$RETROWEB_COMPONENTS_PATH/artwork/appbar.cursor.default.svg" id="interactBtn" class="roundedBtn"></inline-svg>
 				<inline-svg src="$RETROWEB_COMPONENTS_PATH/artwork/appbar.power.svg"          id="powerBtn"    class="roundedBtn"></inline-svg>
 			</div>
+			<div id="emulator-byline"></div>
 		</div>
 	</div>
 </template>
@@ -169,7 +186,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 			}
 			return match;
 		}
-		
+
 		var me = this;
 		/* Proceed to set up events. A click on the overlay would normally capture the event, so the
 		 * user would need to double click to hide the overlay and then activate the emulator screen.
@@ -194,7 +211,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 		this.shadowRoot.querySelector("#screen-overlay-controls").addEventListener('click',    redispatchToCanvas);
 		this.shadowRoot.querySelector("#screen-overlay-controls").addEventListener('mouseup',  redispatchToCanvas);
 		this.shadowRoot.querySelector("#screen-overlay-controls").addEventListener('mousedown',redispatchToCanvas);
-		
+
 		/* Locate the zoomTarget, the animated-zoom object to which zooming in applies */
 		var zoomAttr   = me.getAttribute('zoomTarget');
 		if(me.closest) {
@@ -262,11 +279,15 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 		this.shadowRoot.querySelector("#screen-container-inner").addEventListener('mouseenter', mouseEnter);
 
 		overlayActiveState(true);
-	}
-	
-    EmulatorButtonsProto.setRestartAction = function(func) {
+	};
+
+	EmulatorButtonsProto.setRestartAction = function(func) {
 		this.shadowRoot.querySelector("#powerBtn").addEventListener('click',func);
 		this.shadowRoot.querySelector("#powerBtn2").addEventListener('click',func);
+	};
+
+	EmulatorButtonsProto.setByline = function(byline) {
+		this.shadowRoot.querySelector("#emulator-byline").innerHTML = byline;
 	};
 
 	var EmulatorButtons = document.registerElement('emulator-buttons', {prototype: EmulatorButtonsProto});

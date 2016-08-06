@@ -127,7 +127,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 	AnimatedZoomProto.isZoomed = function() {
 		return this.classList.contains("zoomed");
-	}
+	};
 	
 	AnimatedZoomProto.toggleZoom = function() {
 		if(this.isZoomed()) {
@@ -135,7 +135,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 		} else {
 			this.zoomIn();
 		}
-	}
+	};
 
 	/* The following methods simply wrap a compatibility layer around the FullscreenAPI
 	 *
@@ -152,11 +152,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 		} else if(element.msRequestFullscreen) {
 			element.msRequestFullscreen();
 		}
-	}
+	};
 
 	AnimatedZoomProto.isFullscreen = function() {
 		return document.fullscreenElement || document.mozFullScreenElement || document.webkitFullscreenElement;
-	}
+	};
 
 	AnimatedZoomProto.exitFullscreen = function() {
 		if(document.fullscreenElement || document.mozFullScreenElement || document.webkitFullscreenElement) {
@@ -168,7 +168,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 				document.webkitExitFullscreen();
 			}
 		}
-	}
+	};
 
 	var AnimatedZoom = document.registerElement('animated-zoom', {prototype: AnimatedZoomProto});
 })((document._currentScript || document.currentScript).ownerDocument);

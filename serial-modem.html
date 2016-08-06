@@ -282,7 +282,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 			this.status = status;
 			shadowRoot.getElementById(this.status).style.display = "block";
 		}
-	}
+	};
 
 	var SerialModemProto = Object.create(HTMLElement.prototype);
 
@@ -447,7 +447,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 			var showMiniTermLink = shadowRoot.querySelector("#showMiniTerm");
 			showMiniTermLink.style.display = "none";
 		}
-	}
+	};
 
 	Object.defineProperty(SerialModemProto, "peer-config", {writable: true});
 
