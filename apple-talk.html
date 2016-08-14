@@ -1,0 +1,354 @@
+<!--
+RetroWeb Components
+Copyright (C) 2016 Marcio Teixeira
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
+of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+-->
+<template id="AppleTalkTemplate">
+	<style>
+		/* inline-block here and 'text-align: center' on our parent
+		   centers us horizontally */
+		#network {
+			display:				inline-block;
+
+			text-align:				center;
+		}
+
+		#network H1 {
+			font-family: 		"Arial Black", Arial, sans-serif;
+			font-size:			150%;
+		}
+
+		/* Show or hide DIVS depending on the data-status attribute */
+		#network > DIV.mode {
+			font-family: 		Arial, sans-serif;
+			display:			none;
+			font-size:			125%;
+			font-weight:		bold;
+		}
+
+		#offline {
+			cursor:				pointer;
+		}
+		
+		#network {
+			font-family: 		Arial, sans-serif;
+			font-size:			125%;
+			font-weight:		bold;
+		}
+	</style>
+	<div id="network">
+		<div id="offline" class="mode">
+			<a id="goOnline">Join LocalTalk Network</a>
+		</div>
+		<div id="error" class="mode">
+			Cannot join the network (<span id="errorType"></span>)
+		</div>
+		<div id="connected" class="mode">
+			Connected to network
+		</div>
+	</div>
+</template>
+
+<style>
+		apple-talk {
+			display:					block;
+			text-align:					center;
+		}
+</style>
+
+<script src="serial-modem.resources/peer.min.js"></script>
+
+<script>
+(function(namespace, thisDoc){
+	var shadowRoot;
+
+	var LocalTalkNetwork = class {
+		constructor(peerOptions, networkDataCallback, connectionClosedCallback) {
+			this.networkDataCallback	    = networkDataCallback;
+			this.connectionClosedCallback	= connectionClosedCallback;
+			this.conn					    = null;
+			this.peerOptions                = peerOptions;
+
+			this.setStatus('offline');
+		}
+
+		/* joinNetwork attempts to start a new network as the master. If that
+		 * network is already started, join as a member.
+		 */
+		joinNetwork(networkId) {
+			var me = this;
+
+			function errorFunc(err) {
+				if(err.type == 'unavailable-id') {
+					window.setTimeout(me.joinAsMember.bind(me, networkId), 10);
+				} else {
+					me.setStatus('error', err.type);
+					shadowRoot.getElementById('errorType').innerHTML = err.type;
+				}
+			}
+
+			var id = "retroweb_" + networkId;
+			this.peer = new Peer(id, this.peerOptions);
+			this.peer.on('error', errorFunc);
+			this.peer.on('open', function(id) {
+				console.log("apple-talk: I am the master of network. My id is ", id);
+				me.setStatus('connected');
+				me.peer.on('connection', function(conn) {me.processPeerConnection(conn);});
+			});
+		}
+
+		joinAsMember(networkId) {
+			if(!networkId) {
+				console.log("Network id is blank");
+				return;
+			}
+
+			function errorFunc(err) {
+				me.setStatus('error', err.type);
+				shadowRoot.getElementById('errorType').innerHTML = err.type;
+			}
+
+			var me = this;
+			var peerId = "retroweb_" + networkId;
+			this.peer = new Peer(this.peerOptions);
+			this.peer.on('error', errorFunc);
+			this.peer.on('open', function(id) {
+				console.log("apple-talk: I am member of the network. My id is ", id);
+				console.log("apple-talk: Trying to connect to ", peerId);
+				me.processPeerConnection(me.peer.connect(peerId));
+			});
+		}
+
+		processPeerConnection(newConnection) {
+			if(this.conn) {
+				/* If we are already connected, reject the new connection */
+				console.log("apple-talk: Rejecting connection, already connected");
+			} else {
+				console.log("apple-talk: Accepting connection");
+				var me = this;
+				this.setStatus('connected');
+				this.conn = newConnection;
+				this.conn.on('data',  function(data) {me.receiveNetworkData(data);});
+				this.conn.on('close', function()     {me.connectionClosedCallback();});
+			}
+		}
+
+		receiveNetworkData(data) {
+			this.networkDataCallback(data);
+		}
+
+		sendNetworkData(data) {
+			if(this.conn) {
+				this.conn.send(data);
+			}
+		}
+
+		setStatus(status) {
+			if(this.status) {
+				shadowRoot.getElementById(this.status).style.display = "none";
+			}
+			this.status = status;
+			shadowRoot.getElementById(this.status).style.display = "block";
+		}
+	};
+
+	var AppleTalkProtocol = class {
+		constructor(replyCallback, transmitCallback) {
+			this.buffer            = "";
+			this.replyCallback     = replyCallback;
+			this.transmitCallback  = transmitCallback;
+
+			this.LLAP_CNTL_TYPE = Object.freeze({
+				"lapENQ"  : 0x81,
+				"lapACK"  : 0x82,
+				"lapRTS"  : 0x84,
+				"lapCTS"  : 0x85
+			});
+		}
+
+		sendLlapACK(dstNodeId, srcNodeId) {
+			var reply = 
+				String.fromCharCode(dstNodeId) +
+				String.fromCharCode(srcNodeId) +
+				String.fromCharCode(this.LLAP_CNTL_TYPE.lapACK) +
+				String.fromCharCode(0) +
+				String.fromCharCode(0x7E);
+			this.replyCallback(reply);
+		}
+
+		sendLlapCTS(dstNodeId, srcNodeId) {
+			var reply = 
+				String.fromCharCode(dstNodeId) +
+				String.fromCharCode(srcNodeId) +
+				String.fromCharCode(this.LLAP_CNTL_TYPE.lapCTS) +
+				String.fromCharCode(0) +
+				String.fromCharCode(0x7E);
+			this.replyCallback(reply);
+		}
+
+		processEmulatorFrame(frame) {
+			var dumpFrame = 0;
+			var header = AppleTalkProtocol.unescapeFrame(frame, 5);
+			var llapDstId = header.charCodeAt(0);
+			var llapSrcId = header.charCodeAt(1);
+			var llapType  = header.charCodeAt(2);
+			switch(llapType) {
+				case this.LLAP_CNTL_TYPE.lapENQ:
+					/*console.log("lapENQ sent to", llapDstId.toString(16), ": Does anyone have node id ", llapDstId.toString(16), "? From:", llapSrcId.toString(16));*/
+					/*if(this.rejectedENQ<3) {
+						this.sendLlapACK(this.llapSrcNodeId, this.llapDstNodeId);
+					}*/
+					this.myNodeId = llapDstId;
+					break;
+				case this.LLAP_CNTL_TYPE.lapRTS:
+					/*console.log("lapRTS sent to", llapDstId.toString(16), " from ", llapSrcId.toString(16));*/
+					if(llapDstId != 0xFF) {
+						this.sendLlapCTS(this.llapSrcNodeId, this.llapDstNodeId);
+					}
+					break;
+				case 1:
+				case 2:
+					var dataSize  = (header.charCodeAt(3) & 0x03) << 8 | header.charCodeAt(4);
+					/*console.log("Node", llapSrcId.toString(16), " is sending a DDP frame of length", dataSize, " to ", llapDstId.toString(16));
+					if(dataSize > 0) {
+						dumpFrame = true;
+					}*/
+					this.transmitCallback({destination: llapDstId, frame:frame});
+					break;
+				default:
+					/*console.log("Node", llapSrcId.toString(16), " is sending an unrecognized frame to ", llapDstId.toString(16));
+					dumpFrame = true;*/
+					this.transmitCallback({destination: llapDstId, frame:frame});
+					break;
+			}
+
+			if(dumpFrame) {
+				frame = AppleTalkProtocol.unescapeFrame(frame);
+				// Print out the frame
+				var hex = "";
+				for(var i = 0; i < frame.length; i++) {
+					var hexByte = frame.charCodeAt(i).toString(16);
+					hex += hexByte.length == 2 ? hexByte : '0' + hexByte;
+				}
+				console.log("Frame ", frame.length, "bytes:", hex, frame);
+			}
+		}
+
+		processNetworkData(data) {
+			/*console.log("Got remote packet for", data.destination);*/
+			if(data.destination == 0xFF || data.destination == this.myNodeId) {
+				this.replyCallback(data.frame + String.fromCharCode(0x7E));
+			}
+		}
+
+		/* Processes a stream of characters coming out of the emulator */
+		processEmulatorData(data) {
+			for(var i = 0; i < data.length; i++) {
+				if(data.charCodeAt(i) == 0x7E) {
+					this.processEmulatorFrame(this.buffer);
+					this.buffer = "";
+				} else {
+					this.buffer += data.charAt(i);
+				}
+			}
+		}
+
+		static unescapeFrame(data, maxLength) {
+			var result = "";
+			for(var i = 0; i < data.length; i++) {
+				if(data.charCodeAt(i) == 0x7D) {
+					result += String.fromCharCode(data.charCodeAt(++i) ^ 0x20);
+				} else {
+					result += data.charAt(i);
+				}
+				if(maxLength && result.length == maxLength) {
+					break;
+				}
+			}
+			return result;
+		}
+	};
+
+	var AppleTalkProto = Object.create(HTMLElement.prototype);
+
+	AppleTalkProto.createdCallback = function() {
+		var me = this;
+
+		if(!this.parentNode || !this.parentNode.classList.contains('allowCustomElements')) {
+			return;
+		}
+
+		var network;
+		
+		this.characterAvailableCallback = null;
+
+		var t = thisDoc.getElementById('AppleTalkTemplate');
+		var clone = document.importNode(t.content, true);
+		shadowRoot = this.createShadowRoot();
+		shadowRoot.appendChild(clone);
+
+		/* Events FROM the AppleTalk processor TO the Emulator */
+
+		function replyCallback(data) {
+			if(me.characterAvailableCallback) {
+				me.characterAvailableCallback(data);
+			}
+		}
+
+		if(typeof emulator !== "undefined") {
+			/* If an emulator object is defined, automatically link up to it */
+			var me = this;
+			emulator.setSerialDataAvailableCallback(function(c) {me.sendData(c);});
+			this.setDataReceivedCallback(function(data) {emulator.sendSerialDataToEmulator(data)});
+		}
+		
+		/* Events FROM the AppleTalk processor that go TO the LocalTalkNetwork */
+		function transmitCallback(data) {
+			network.sendNetworkData(data);
+		}
+
+		/* Events FROM the LocalTalkNetwork that go TO the AppleTalk processor */
+
+		function networkDataCallback(data) {
+			me.protocol.processNetworkData(data);
+		}
+
+		function connectionClosedCallback() {
+			console.log("Connection closed");
+		}
+
+		var peerConfig  = this.getAttribute('peer-config');
+		var peerOptions = peerConfig ? JSON.parse(peerConfig) : namespace.peerJSConfig;
+
+		this.protocol       = new AppleTalkProtocol(replyCallback, transmitCallback);
+		
+		network        = new LocalTalkNetwork(peerOptions, networkDataCallback, connectionClosedCallback);
+		
+		var networkId = "appletalk";
+		shadowRoot.getElementById("goOnline").addEventListener('click', function() {network.joinNetwork(networkId);});
+	};
+
+	AppleTalkProto.setDataReceivedCallback = function(callback) {
+		this.characterAvailableCallback = callback;
+	};
+
+	AppleTalkProto.sendData = function(data) {
+		this.protocol.processEmulatorData(data);
+	};
+
+	var AppleTalk = document.registerElement('apple-talk', {prototype: AppleTalkProto});
+})(window.RetroWeb = window.RetroWeb || {}, (document._currentScript || document.currentScript).ownerDocument);
+</script>
