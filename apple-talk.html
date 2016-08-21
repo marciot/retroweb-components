@@ -73,13 +73,15 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 	var shadowRoot;
 
 	var LocalTalkNetwork = class {
-		constructor(peerOptions, networkDataCallback, connectionClosedCallback) {
+		constructor(peerOptions, networkDataCallback) {
 			this.networkDataCallback		= networkDataCallback;
-			this.connectionClosedCallback	= connectionClosedCallback;
-			this.conn						= null;
 			this.peerOptions				= peerOptions;
 			this.joinInitiated				= false;
 			this.isConnected				= false;
+			this.connections				= {};
+			this.isMaster					= false;
+			this.myId						= null;
+			this.verbose					= false;
 
 			this.setStatus('offline');
 		}
@@ -108,10 +110,12 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 			this.peer = new Peer(id, this.peerOptions);
 			this.peer.on('error', errorFunc);
 			this.peer.on('open', function(id) {
+				me.myId = id;
 				console.log("apple-talk: I am the master of network. My id is ", id);
 				me.setStatus('connected');
 				me.peer.on('connection', function(conn) {me.processPeerConnection(conn);});
 				me.isConnected = true;
+				me.isMaster = true;
 			});
 		}
 
@@ -131,34 +135,76 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 			this.peer = new Peer(this.peerOptions);
 			this.peer.on('error', errorFunc);
 			this.peer.on('open', function(id) {
+				me.myId = id;
 				console.log("apple-talk: I am member of the network. My id is ", id);
 				console.log("apple-talk: Trying to connect to ", peerId);
+				me.peer.on('connection', function(conn) {me.processPeerConnection(conn);});
 				me.processPeerConnection(me.peer.connect(peerId));
 			});
 		}
 
 		processPeerConnection(newConnection) {
-			if(this.conn) {
+			var peer = newConnection.peer;
+			if(this.connections[peer]) {
 				/* If we are already connected, reject the new connection */
-				console.log("apple-talk: Rejecting connection, already connected");
+				console.log("apple-talk: Rejecting connection from", peer, "already connected");
 			} else {
-				console.log("apple-talk: Accepting connection");
+				console.log("apple-talk: Accepting connection from", peer);
+				this.connections[peer] = newConnection;
 				var me = this;
+				newConnection.on('data',  function(data) {me.receiveNetworkData(peer, data);});
+				newConnection.on('close', function()     {me.connectionClosed(peer);});
 				this.setStatus('connected');
-				this.conn = newConnection;
-				this.conn.on('data',  function(data) {me.receiveNetworkData(data);});
-				this.conn.on('close', function()     {me.connectionClosedCallback();});
 				this.isConnected = true;
+				if(this.isMaster) {
+					window.setTimeout(this.sendPeerList.bind(this), 1000);
+				}
 			}
 		}
 
-		receiveNetworkData(data) {
-			this.networkDataCallback(data);
+		connectionClosed(peer) {
+			console.log("Connection closed:", peer);
+			delete this.connections[peer];
 		}
 
-		sendNetworkData(data) {
-			if(this.conn) {
-				this.conn.send(data);
+		sendPeerList() {
+			var peers = Object.getOwnPropertyNames(this.connections);
+			console.log("Sending peers list:", peers);
+			this.sendBroadcastMessage({peerList: peers});
+		}
+
+		sendBroadcastMessage(data) {
+			var peers = Object.getOwnPropertyNames(this.connections);
+			for(var i = 0; i < peers.length; i++) {
+				if(this.verbose) {
+					console.log("Sending broadcast to", peers[i]);
+				}
+				this.connections[peers[i]].send(data);
+			}
+		}
+
+		receiveNetworkData(peer, data) {
+			if(data.hasOwnProperty("peerList")) {
+				console.log("Receiving updated peer list", data.peerList);
+				for(var i = 0; i < data.peerList.length; i++) {
+					var peer = data.peerList[i];
+					if(!this.connections[peer] && (this.myId > peer)) {
+						console.log("Connecting to new peer", peer);
+						this.processPeerConnection(this.peer.connect(peer));
+					}
+				}
+			} else {
+				this.networkDataCallback(peer, data);
+			}
+		}
+
+		sendNetworkData(peer, data) {
+			if(peer === "*") {
+				this.sendBroadcastMessage(data);
+			} else if(this.connections[peer]) {
+				this.connections[peer].send(data);
+			} else {
+				console.log("Trying to send data to", peer, " which we are not connected to, this should not happen");
 			}
 		}
 
@@ -336,6 +382,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 			this.myNodeId          = undefined;
 			this.verbose           = false;
 
+			this.peerMap           = [];
+
 			this.packetAwaitingCTS = null;
 			this.messageQueue      = [];
 			this.decoder           = new FrameDecoder();
@@ -399,11 +447,18 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 					break;
 				case 1:
 				case 2:
-					this.network.sendNetworkData({destination: obj.dstId, source: obj.srcId, frame:cloneFrame(frame)});
+					this.sendNetworkData({destination: obj.dstId, source: obj.srcId, frame:cloneFrame(frame)});
 					break;
 				default:
-					this.network.sendNetworkData({destination: obj.dstId, source: obj.srcId, frame:cloneFrame(frame)});
+					this.sendNetworkData({destination: obj.dstId, source: obj.srcId, frame:cloneFrame(frame)});
 					break;
+			}
+		}
+
+		sendNetworkData(data) {
+			var peer = (data.destination == 0xFF) ? "*" : this.nodeIdToPeer(data.destination);
+			if(peer) {
+				this.network.sendNetworkData(peer, data);
 			}
 		}
 
@@ -420,7 +475,23 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 			]));
 		}
 
-		processNetworkData(data) {
+		learnNodeIdToPeerMapping(nodeId, peer) {
+			if(nodeId != this.peerMap[nodeId]) {
+				console.log("Node", nodeId.toString(16), "is associated with peer", peer);
+				this.peerMap[nodeId] = peer;
+			}
+		}
+
+		nodeIdToPeer(nodeId) {
+			var peer = this.peerMap[nodeId];
+			if(!peer) {
+				console.log("Attempting to send packet to node", nodeId, "for which a peer is not known");
+			}
+			return peer;
+		}
+
+		processNetworkData(peer, data) {
+			this.learnNodeIdToPeerMapping(data.source, peer);
 			if(this.messageQueue.length) {
 				Module.ccall("e8530_sdlc_frame_available", null);
 				console.log("Dropping network packet because queue is full");
@@ -463,19 +534,15 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 		/* Events FROM the LocalTalkNetwork that go TO the AppleTalk processor */
 
-		function networkDataCallback(data) {
-			me.atIfce.processNetworkData(data);
-		}
-
-		function connectionClosedCallback() {
-			console.log("Connection closed");
+		function networkDataCallback(peer, data) {
+			me.atIfce.processNetworkData(peer, data);
 		}
 
 		var peerConfig  = this.getAttribute('peer-config');
 		var peerOptions = peerConfig ? JSON.parse(peerConfig) : namespace.peerJSConfig;
 
 		var networkId = "appletalk";
-		this.network = new LocalTalkNetwork(peerOptions, networkDataCallback, connectionClosedCallback);
+		this.network = new LocalTalkNetwork(peerOptions, networkDataCallback);
 		this.atIfce  = new AppleTalkInterface(this.network, networkId);
 	};
 
