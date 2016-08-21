@@ -271,7 +271,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 			obj.llapType  = frame[2];
 			switch(obj.llapType) {
 				case this.LLAP_CNTL_TYPE.lapENQ:
-					this.myNodeId = llapDstId;
+					this.myNodeId = obj.dstId;
 					if(this.verbose) {
 						console.log(
 							obj.srcId.toString(16), "->",  obj.dstId.toString(16),
