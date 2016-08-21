@@ -21,43 +21,40 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 		/* inline-block here and 'text-align: center' on our parent
 		   centers us horizontally */
 		#network {
-			display:				inline-block;
-
-			text-align:				center;
+			display:			inline-block;
+			text-align:			center;
+			font-size:			small;
 		}
 
 		#network H1 {
 			font-family: 		"Arial Black", Arial, sans-serif;
-			font-size:			150%;
+			font-size:			large;
 		}
 
 		/* Show or hide DIVS depending on the data-status attribute */
 		#network > DIV.mode {
+			text-align:			left;
 			font-family: 		Arial, sans-serif;
 			display:			none;
-			font-size:			125%;
-			font-weight:		bold;
-		}
-
-		#offline {
-			cursor:				pointer;
-		}
-		
-		#network {
-			font-family: 		Arial, sans-serif;
-			font-size:			125%;
-			font-weight:		bold;
 		}
 	</style>
 	<div id="network">
 		<div id="offline" class="mode">
-			<a id="goOnline">Join LocalTalk Network</a>
+			<h1>Steps to start networking:</h1>
+			<ol>
+				<li>Boot the computer using a disk icon.
+				<li>Type a name for your computer when asked.
+				<li>Select "Chooser" from the <img src="data:image/gif;base64,R0lGODlhCwANAIABAAAAAP///yH5BAEKAAEALAAAAAALAA0AAAIajI9pALrtAkys1VMzexrpjX2gCEofZU3RUQAAOw=="> menu.
+				<li>Click the "Active" button next to "AppleTalk"
+				<li>Click "Continue" when asked to make sure you are connected to an AppleTalk network.
+			</ol>
+
 		</div>
 		<div id="error" class="mode">
-			Cannot join the network (<span id="errorType"></span>)
+			<h1>Cannot join the network (<span id="errorType"></span>)</h1>
 		</div>
 		<div id="connected" class="mode">
-			Connected to network
+			<h1>Connected to the network</h1>
 		</div>
 	</div>
 </template>
@@ -77,10 +74,12 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 	var LocalTalkNetwork = class {
 		constructor(peerOptions, networkDataCallback, connectionClosedCallback) {
-			this.networkDataCallback	    = networkDataCallback;
+			this.networkDataCallback		= networkDataCallback;
 			this.connectionClosedCallback	= connectionClosedCallback;
-			this.conn					    = null;
-			this.peerOptions                = peerOptions;
+			this.conn						= null;
+			this.peerOptions				= peerOptions;
+			this.joinInitiated				= false;
+			this.isConnected				= false;
 
 			this.setStatus('offline');
 		}
@@ -89,6 +88,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 		 * network is already started, join as a member.
 		 */
 		joinNetwork(networkId) {
+			if(this.joinInitiated) {
+				return;
+			}
+			this.joinInitiated = true;
+
 			var me = this;
 
 			function errorFunc(err) {
@@ -107,6 +111,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 				console.log("apple-talk: I am the master of network. My id is ", id);
 				me.setStatus('connected');
 				me.peer.on('connection', function(conn) {me.processPeerConnection(conn);});
+				me.isConnected = true;
 			});
 		}
 
@@ -143,6 +148,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 				this.conn = newConnection;
 				this.conn.on('data',  function(data) {me.receiveNetworkData(data);});
 				this.conn.on('close', function()     {me.connectionClosedCallback();});
+				this.isConnected = true;
 			}
 		}
 
@@ -165,11 +171,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 		}
 	};
 
-	var AppleTalkProtocol = class {
-		constructor(replyCallback, transmitCallback) {
-			this.buffer            = "";
-			this.replyCallback     = replyCallback;
-			this.transmitCallback  = transmitCallback;
+	class FrameDecoder {
+		constructor() {
+			this.verbose = false;
 
 			this.LLAP_CNTL_TYPE = Object.freeze({
 				"lapENQ"  : 0x81,
@@ -179,151 +183,288 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 			});
 		}
 
-		sendLlapACK(dstNodeId, srcNodeId) {
-			var reply = 
-				String.fromCharCode(dstNodeId) +
-				String.fromCharCode(srcNodeId) +
-				String.fromCharCode(this.LLAP_CNTL_TYPE.lapACK) +
-				String.fromCharCode(0) +
-				String.fromCharCode(0x7E);
-			this.replyCallback(reply);
+		static decodeStrField(frame, length, offset) {
+			var str = "";
+			for(var i = 0; i < length; i++) {
+				str += String.fromCharCode(frame[offset++]);
+			}
+			return str;
 		}
 
-		sendLlapCTS(dstNodeId, srcNodeId) {
-			var reply = 
-				String.fromCharCode(dstNodeId) +
-				String.fromCharCode(srcNodeId) +
-				String.fromCharCode(this.LLAP_CNTL_TYPE.lapCTS) +
-				String.fromCharCode(0) +
-				String.fromCharCode(0x7E);
-			this.replyCallback(reply);
+		static decodeNBPTuple(frame, obj, offset) {
+			obj.networkNumber  = (frame[offset++] << 8) | frame[offset++];
+			obj.nodeId         = frame[offset++];
+			obj.socketNumber   = frame[offset++];
+			obj.enumerator     = frame[offset++];
+
+			obj.obj  = FrameDecoder.decodeStrField(frame, frame[offset], offset+1);
+			offset  += frame[offset]+1;
+
+			obj.type = FrameDecoder.decodeStrField(frame, frame[offset], offset+1);
+			offset  += frame[offset]+1;
+
+			obj.zone = FrameDecoder.decodeStrField(frame, frame[offset], offset+1);
+			offset  += frame[offset]+1;
+			return offset;
 		}
 
-		processEmulatorFrame(frame) {
-			var dumpFrame = 0;
-			var header = AppleTalkProtocol.unescapeFrame(frame, 5);
-			var llapDstId = header.charCodeAt(0);
-			var llapSrcId = header.charCodeAt(1);
-			var llapType  = header.charCodeAt(2);
-			switch(llapType) {
+		static nbpFunctionStr(obj) {
+			switch(obj.nbpFunction) {
+				case 1: return "BrRq";
+				case 2: return "lkUp";
+				case 3: return "lkUp-Reply";
+				case 4: return "FwdReq";
+			}
+		}
+
+		decodeNBP(frame, obj) {
+			obj.nbpFunction = (frame[8] & 0xF0) >> 4;
+			obj.nbpTupleCnt = (frame[8] & 0x0F);
+			obj.nbtId       = frame[9];
+			obj.nbtTuple    = [];
+			var offset = 10;
+			for(var i = 0; i < obj.nbpTupleCnt; i++) {
+				obj.nbtTuple[i] = {};
+				offset = FrameDecoder.decodeNBPTuple(frame, obj.nbtTuple[i], offset);
+			}
+			if(offset != frame.length) {
+				console.log("decodeNBP: expected length mismatch", frame.length, offset);
+			}
+			if(this.verbose) {
+				console.log("ddpPckt " + FrameDecoder.nbpFunctionStr(obj) + ":",
+					obj.srcId.toString(16),
+					"->",
+					obj.dstId.toString(16),
+					obj.nbpTupleCnt,
+					obj.nbtTuple[0].nodeId,
+					obj.nbtTuple[0].obj,
+					obj.nbtTuple[0].type);
+			}
+		}
+
+		decodeDDPShort(frame, obj) {
+			obj.ddpLength = ((frame[3] & 0x03) << 8) | frame[4];
+			obj.dstSocket = frame[5];
+			obj.srcSocket = frame[6];
+			obj.ddpType   = frame[7];
+			switch(obj.ddpType) {
+				case 2:
+					this.decodeNBP(frame, obj);
+					break;
+				default:
+					if(this.verbose) {
+						console.log(
+							"ddpPckt " + obj.ddpType + ":",
+							obj.srcId.toString(16),
+							"->",
+							obj.dstId.toString(16),
+							FrameDecoder.frameDump(frame)
+						);
+					}
+					break;
+			}
+		}
+
+		decodeFrame(frame, obj) {
+			obj.dstId     = frame[0];
+			obj.srcId     = frame[1];
+			obj.llapType  = frame[2];
+			switch(obj.llapType) {
 				case this.LLAP_CNTL_TYPE.lapENQ:
-					/*console.log("lapENQ sent to", llapDstId.toString(16), ": Does anyone have node id ", llapDstId.toString(16), "? From:", llapSrcId.toString(16));*/
-					/*if(this.rejectedENQ<3) {
-						this.sendLlapACK(this.llapSrcNodeId, this.llapDstNodeId);
-					}*/
 					this.myNodeId = llapDstId;
+					if(this.verbose) {
+						console.log(
+							obj.srcId.toString(16), "->",  obj.dstId.toString(16),
+							": Does anyone have node id ", obj.dstId.toString(16), "?"
+						);
+					}
 					break;
 				case this.LLAP_CNTL_TYPE.lapRTS:
-					/*console.log("lapRTS sent to", llapDstId.toString(16), " from ", llapSrcId.toString(16));*/
-					if(llapDstId != 0xFF) {
-						this.sendLlapCTS(this.llapSrcNodeId, this.llapDstNodeId);
+					if(this.verbose) {
+						console.log(
+							obj.srcId.toString(16), "->",  obj.dstId.toString(16),
+							": lapRTS sent"
+						);
+					}
+					break;
+				case this.LLAP_CNTL_TYPE.lapCTS:
+					if(this.verbose) {
+						console.log(
+							obj.srcId.toString(16), "->",  obj.dstId.toString(16),
+							": lapCTS sent"
+						);
+					}
+					break;
+				case this.LLAP_CNTL_TYPE.lapACK:
+					if(this.verbose) {
+						console.log(
+							obj.srcId.toString(16), "->",  obj.dstId.toString(16),
+							": yes, I have node id ", obj.srcId.toString(16)
+						);
+					}
+					break;
+				case 1: /* Short header */
+					this.decodeDDPShort(frame, obj);
+					break;
+				case 2: /* Extended header */
+					console.log("Extended header DDP not supported");
+					break;
+				default:
+					console.log("Unrecognized LLAP packet type", obj.llapType);
+					break;
+			}
+		}
+
+		static frameDump(frame) {
+			var hex = "";
+			var str = "";
+			for(var i = 0; i < frame.length; i++) {
+				var c = frame[i];
+				var hexByte = c.toString(16);
+				hex += hexByte.length == 2 ? hexByte : '0' + hexByte;
+				str += (c > 31 && c < 128) ? String.fromCharCode(c) : '.';
+			}
+			return "" + frame.length + "bytes:" + hex + " " + str;
+		}
+	}
+
+	var AppleTalkInterface = class {
+		constructor(network, networkId) {
+			this.network           = network;
+			this.networkId         = networkId;
+			this.buffer            = "";
+			this.myNodeId          = undefined;
+			this.verbose           = false;
+
+			this.packetAwaitingCTS = null;
+			this.messageQueue      = [];
+			this.decoder           = new FrameDecoder();
+
+			/* The emulator will call these global functions when sending and receiving packets */
+			window.e8530_poll_sdlc_packet_js = (this._e8530_poll_sdlc_packet_js).bind(this);
+			window.e8530_send_sdlc_packet_js = (this._e8530_send_sdlc_packet).bind(this);
+		}
+
+		_e8530_poll_sdlc_packet_js(buffPtr, buffSize) {
+			var frame = this.messageQueue.shift();
+			if(this.messageQueue.length) {
+				Module.ccall("e8530_sdlc_frame_available", null);
+			}
+			if(frame) {
+				if(this.verbose) {
+					console.log("Delivering frame", FrameDecoder.frameDump(frame));
+				}
+				Module.HEAPU8.set(frame, buffPtr);
+				return frame.length;
+			}
+			return 0;
+		}
+
+		_e8530_send_sdlc_packet(buffPtr, buffSize) {
+			var frame     = Module.HEAPU8.subarray(buffPtr, buffPtr + buffSize);
+			var obj       = {};
+
+			this.decoder.decodeFrame(frame, obj);
+
+			function cloneFrame(frame) {
+				var clone = new ArrayBuffer(frame.length);
+				var view  = new Uint8Array(clone);
+				view.set(frame);
+				return clone;
+			}
+
+			switch(obj.llapType) {
+				case this.decoder.LLAP_CNTL_TYPE.lapENQ:
+					if(!this.network.isConnected) {
+						this.addCtlMsgToQueue(obj.srcId, obj.dstId, this.decoder.LLAP_CNTL_TYPE.lapACK);
+						this.network.joinNetwork(this.networkId);
+					}
+					this.myNodeId = obj.dstId;
+					break;
+				case this.decoder.LLAP_CNTL_TYPE.lapRTS:
+					if(obj.dstId != 0xFF) {
+						this.addCtlMsgToQueue(obj.srcId, obj.dstId, this.decoder.LLAP_CNTL_TYPE.lapCTS);
+					}
+					break;
+				case this.decoder.LLAP_CNTL_TYPE.lapCTS:
+					if(this.packetAwaitingCTS) {
+						if(this.verbose) {
+							console.log("Got CTS for waiting packet.");
+						}
+						this.addPacketToQueue(this.packetAwaitingCTS);
+						this.packetAwaitingCTS = null;
+					} else if(this.verbose) {
+						console.log("Got unexpected CTS.");
 					}
 					break;
 				case 1:
 				case 2:
-					var dataSize  = (header.charCodeAt(3) & 0x03) << 8 | header.charCodeAt(4);
-					/*console.log("Node", llapSrcId.toString(16), " is sending a DDP frame of length", dataSize, " to ", llapDstId.toString(16));
-					if(dataSize > 0) {
-						dumpFrame = true;
-					}*/
-					this.transmitCallback({destination: llapDstId, frame:frame});
+					this.network.sendNetworkData({destination: obj.dstId, source: obj.srcId, frame:cloneFrame(frame)});
 					break;
 				default:
-					/*console.log("Node", llapSrcId.toString(16), " is sending an unrecognized frame to ", llapDstId.toString(16));
-					dumpFrame = true;*/
-					this.transmitCallback({destination: llapDstId, frame:frame});
+					this.network.sendNetworkData({destination: obj.dstId, source: obj.srcId, frame:cloneFrame(frame)});
 					break;
 			}
+		}
 
-			if(dumpFrame) {
-				frame = AppleTalkProtocol.unescapeFrame(frame);
-				// Print out the frame
-				var hex = "";
-				for(var i = 0; i < frame.length; i++) {
-					var hexByte = frame.charCodeAt(i).toString(16);
-					hex += hexByte.length == 2 ? hexByte : '0' + hexByte;
-				}
-				console.log("Frame ", frame.length, "bytes:", hex, frame);
-			}
+		addPacketToQueue(uint8array) {
+			this.messageQueue.push(uint8array);
+			Module.ccall("e8530_sdlc_frame_available", null);
+		}
+
+		addCtlMsgToQueue(dstNodeId, srcNodeId, type) {
+			this.addPacketToQueue(Uint8Array.from([
+				dstNodeId,
+				srcNodeId,
+				type
+			]));
 		}
 
 		processNetworkData(data) {
-			/*console.log("Got remote packet for", data.destination);*/
-			if(data.destination == 0xFF || data.destination == this.myNodeId) {
-				this.replyCallback(data.frame + String.fromCharCode(0x7E));
+			if(this.messageQueue.length) {
+				Module.ccall("e8530_sdlc_frame_available", null);
+				console.log("Dropping network packet because queue is full");
+				return;
 			}
-		}
-
-		/* Processes a stream of characters coming out of the emulator */
-		processEmulatorData(data) {
-			for(var i = 0; i < data.length; i++) {
-				if(data.charCodeAt(i) == 0x7E) {
-					this.processEmulatorFrame(this.buffer);
-					this.buffer = "";
-				} else {
-					this.buffer += data.charAt(i);
+			var packet = new Uint8Array(data.frame);
+			if(data.destination == 0xFF) {
+				/* Broadcast packet: send RTS followed by data packet, no need to wait for CTS */
+				//this.addCtlMsgToQueue(data.destination, data.source, this.decoder.LLAP_CNTL_TYPE.lapRTS);
+				this.addPacketToQueue(packet);
+				if(this.verbose) {
+					console.log("Sending RTS for broadcast packet followed by packet");
+					//console.log("Sending broadcast packet");
 				}
 			}
-		}
-
-		static unescapeFrame(data, maxLength) {
-			var result = "";
-			for(var i = 0; i < data.length; i++) {
-				if(data.charCodeAt(i) == 0x7D) {
-					result += String.fromCharCode(data.charCodeAt(++i) ^ 0x20);
-				} else {
-					result += data.charAt(i);
-				}
-				if(maxLength && result.length == maxLength) {
-					break;
+			else if(data.destination == this.myNodeId) {
+				/* Directed packet: send RTS, wait for CTS, send data packet */
+				this.packetAwaitingCTS = packet;
+				this.addCtlMsgToQueue(data.destination, data.source, this.decoder.LLAP_CNTL_TYPE.lapRTS);
+				if(this.verbose) {
+					console.log("Sending RTS for directed packet");
 				}
 			}
-			return result;
 		}
 	};
 
 	var AppleTalkProto = Object.create(HTMLElement.prototype);
 
 	AppleTalkProto.createdCallback = function() {
-		var me = this;
-
 		if(!this.parentNode || !this.parentNode.classList.contains('allowCustomElements')) {
 			return;
 		}
-
-		var network;
-		
-		this.characterAvailableCallback = null;
 
 		var t = thisDoc.getElementById('AppleTalkTemplate');
 		var clone = document.importNode(t.content, true);
 		shadowRoot = this.createShadowRoot();
 		shadowRoot.appendChild(clone);
 
-		/* Events FROM the AppleTalk processor TO the Emulator */
-
-		function replyCallback(data) {
-			if(me.characterAvailableCallback) {
-				me.characterAvailableCallback(data);
-			}
-		}
-
-		if(typeof emulator !== "undefined") {
-			/* If an emulator object is defined, automatically link up to it */
-			var me = this;
-			emulator.setSerialDataAvailableCallback(function(c) {me.sendData(c);});
-			this.setDataReceivedCallback(function(data) {emulator.sendSerialDataToEmulator(data)});
-		}
-		
-		/* Events FROM the AppleTalk processor that go TO the LocalTalkNetwork */
-		function transmitCallback(data) {
-			network.sendNetworkData(data);
-		}
+		var me = this;
 
 		/* Events FROM the LocalTalkNetwork that go TO the AppleTalk processor */
 
 		function networkDataCallback(data) {
-			me.protocol.processNetworkData(data);
+			me.atIfce.processNetworkData(data);
 		}
 
 		function connectionClosedCallback() {
@@ -333,20 +474,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 		var peerConfig  = this.getAttribute('peer-config');
 		var peerOptions = peerConfig ? JSON.parse(peerConfig) : namespace.peerJSConfig;
 
-		this.protocol       = new AppleTalkProtocol(replyCallback, transmitCallback);
-		
-		network        = new LocalTalkNetwork(peerOptions, networkDataCallback, connectionClosedCallback);
-		
 		var networkId = "appletalk";
-		shadowRoot.getElementById("goOnline").addEventListener('click', function() {network.joinNetwork(networkId);});
-	};
-
-	AppleTalkProto.setDataReceivedCallback = function(callback) {
-		this.characterAvailableCallback = callback;
-	};
-
-	AppleTalkProto.sendData = function(data) {
-		this.protocol.processEmulatorData(data);
+		this.network = new LocalTalkNetwork(peerOptions, networkDataCallback, connectionClosedCallback);
+		this.atIfce  = new AppleTalkInterface(this.network, networkId);
 	};
 
 	var AppleTalk = document.registerElement('apple-talk', {prototype: AppleTalkProto});
