@@ -289,10 +289,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 		function mouseLeave() {
 			if(!(zoomTarget && zoomTarget.isZoomed())) {
 				gracePeriodTimer = window.setTimeout(function() {
-					if(document.pointerLockElement || document.mozPointerLockElement || document.webkitPointerLockElement) {
-						console.log("Pointer is locked, not showing overlay");
-						return;
-					}
 					gracePeriodTimer = null;
 					overlayActiveState(true);
 				}, 1000);
@@ -305,7 +301,10 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 		this.shadowRoot.querySelector("#allowPointerLock").addEventListener('click', function(e) {e.stopPropagation();} );
 
 		function pointerLockChangeCallback() {
-			console.log("Pointer lock changed");
+			if(document.pointerLockElement || document.mozPointerLockElement || document.webkitPointerLockElement) {
+				mouseEnter(); // Stop the timer
+				overlayActiveState(false);
+			}
 		}
 
 		document.addEventListener('pointerlockchange', pointerLockChangeCallback, false);

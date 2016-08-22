@@ -478,7 +478,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 		}
 
 		learnNodeIdToPeerMapping(nodeId, peer) {
-			if(nodeId != this.peerMap[nodeId]) {
+			if(peer != this.peerMap[nodeId]) {
 				console.log("Node", nodeId.toString(16), "is associated with peer", peer);
 				this.peerMap[nodeId] = peer;
 			}
