@@ -37,17 +37,40 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 			font-family: 		Arial, sans-serif;
 			display:			none;
 		}
+
+		#offline label {
+			font-weight:		bold;
+		}
+
+		#connected {
+			text-align:			center;
+		}
+
+		SPAN.apple {
+			background-image:		url(data:image/gif;base64,R0lGODlhCwANAIABAAAAAP///yH5BAEKAAEALAAAAAALAA0AAAIajI9pALrtAkys1VMzexrpjX2gCEofZU3RUQAAOw==);
+			width:					11px;
+			height:					13px;
+			display:				inline-block;
+		}
 	</style>
 	<div id="network">
 		<div id="offline" class="mode">
+			<h1>Choose where to start:</h1>
+			<ol>
+				<li>The lobby is a good place to chat or find players for games
+				<li>Use a private room for playing games
+				<p>
+					<label>Start in <input type="text" id="roomName" value="Lobby" placeholder="Enter room's codeword here" disabled=disabled></label>
+					<label><input type="checkbox" id="privateRoom">Join private room</label>
+				</p>
+			</ol>
 			<h1>Steps to start networking:</h1>
 			<ol>
 				<li>Boot the computer using a boot disk icon.
 				<li>Type a name for your computer when asked.
-				<li>Select "Chooser" from the <img src="data:image/gif;base64,R0lGODlhCwANAIABAAAAAP///yH5BAEKAAEALAAAAAALAA0AAAIajI9pALrtAkys1VMzexrpjX2gCEofZU3RUQAAOw=="> menu.
+				<li>Select "Chooser" from the <span class="apple"></span> menu.
 				<li>Click the "Active" button next to "AppleTalk"
 				<li>Click "Continue" when asked to make sure you are connected to an AppleTalk network.
-				<li>Close the "Chooser" window (because if left open it causes a lot of network traffic).
 			</ol>
 
 		</div>
@@ -55,7 +78,19 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 			<h1>Cannot join the network (<span id="errorType"></span>)</h1>
 		</div>
 		<div id="connected" class="mode">
-			<h1>Connected to the network</h1>
+			<h1>Connected to the network. Now...</h1>
+			<ol>
+				<li>If you are in the Lobby...
+					<ul>
+						<li>Use "NetChat" from the <span class="apple"></span> menu to find others.
+						<li>To play games, agree on a codeword, then <a href="javascript:window.location.href=window.location.href">reload the page</a> and join the private room with the codeword.
+					</ul>
+				<li>If in a private room...
+					<ul>
+						<li>Launch whatever game you have agreed upon.
+						<li>To return to the lobby, <a href="javascript:window.location.href=window.location.href">reload the page</a>.
+					</ul>
+			</ol>
 		</div>
 	</div>
 </template>
@@ -395,6 +430,10 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 			window.e8530_send_sdlc_packet_js = (this._e8530_send_sdlc_packet).bind(this);
 		}
 
+		setNetworkId(networkId) {
+			this.networkId = networkId;
+		}
+
 		_e8530_poll_sdlc_packet_js(buffPtr, buffSize) {
 			var frame = this.messageQueue.shift();
 			if(this.messageQueue.length) {
@@ -543,9 +582,59 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 		var peerConfig  = this.getAttribute('peer-config');
 		var peerOptions = peerConfig ? JSON.parse(peerConfig) : namespace.peerJSConfig;
 
-		var networkId = "appletalk";
 		this.network = new LocalTalkNetwork(peerOptions, networkDataCallback);
-		this.atIfce  = new AppleTalkInterface(this.network, networkId);
+		this.atIfce  = new AppleTalkInterface(this.network);
+
+		/**
+		 * Calculate a 32 bit FNV-1a hash
+		 * Found here: https://gist.github.com/vaiorabbit/5657561
+		 * Ref.: http://isthe.com/chongo/tech/comp/fnv/
+		 *
+		 * @param {string} str the input value
+		 * @param {boolean} [asString=false] set to true to return the hash value as 
+		 *     8-digit hex string instead of an integer
+		 * @param {integer} [seed] optionally pass the hash of the previous chunk
+		 * @returns {integer | string}
+		 */
+		function hashFnv32a(str, asString, seed) {
+			/*jshint bitwise:false */
+			var i, l,
+				hval = (seed === undefined) ? 0x811c9dc5 : seed;
+
+			for (i = 0, l = str.length; i < l; i++) {
+				hval ^= str.charCodeAt(i);
+				hval += (hval << 1) + (hval << 4) + (hval << 7) + (hval << 8) + (hval << 24);
+			}
+			if( asString ){
+				// Convert to 8 digit hex string
+				return ("0000000" + (hval >>> 0).toString(16)).substr(-8);
+			}
+			return hval >>> 0;
+		}
+
+		function getRoomHash(nameHash) {
+			return hashFnv32a(nameHash.replace(/[^0-9a-zA-Z]/g,'').toLowerCase(), true);
+		}
+
+		function changeNetworkId() {
+			var room = this.shadowRoot.getElementById("roomName");
+			var hash = getRoomHash(room.value);
+			this.atIfce.setNetworkId(hash);
+		}
+
+		function togglePrivateRoom() {
+			var room = this.shadowRoot.getElementById("roomName");
+			if(this.shadowRoot.getElementById("privateRoom").checked) {
+				room.removeAttribute("disabled");
+				room.removeAttribute("value");
+			} else {
+				room.setAttribute("disabled", "disabled");
+				room.setAttribute("value", "Lobby");
+			}
+		}
+		changeNetworkId.call(this);
+		this.shadowRoot.getElementById("privateRoom").addEventListener("click", togglePrivateRoom.bind(this));
+		this.shadowRoot.getElementById("roomName").addEventListener("change",   changeNetworkId.bind(this));
 	};
 
 	var AppleTalk = document.registerElement('apple-talk', {prototype: AppleTalkProto});
