@@ -1,0 +1,80 @@
+<!--
+RetroWeb Components
+Copyright (C) 2016 Marcio Teixeira
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
+of the License, or (at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
+-->
+<template id="GoogleCalendarTemplate">
+	<style>
+		iframe {
+			width:			100%;
+			height:			100%;
+			border-width:	0;
+		}
+	</style>
+	<iframe frameborder="0" scrolling="no">
+	</iframe>
+</template>
+
+<style>
+		google-calendar {
+			display:	inline-block;
+			width:		100%;
+			height:		400px;
+		}
+</style>
+
+<script type="text/javascript" src="//cdnjs.cloudflare.com/ajax/libs/jstimezonedetect/1.0.4/jstz.min.js"></script>
+
+<script>
+(function (thisDoc) {
+	/* http://stackoverflow.com/questions/31821974/support-user-time-zone-in-embedded-google-calendar */
+
+    var GoogleCalendarProto = Object.create(HTMLElement.prototype);
+
+	GoogleCalendarProto.createdCallback = function() {
+		if(!this.parentNode || !this.parentNode.classList.contains('allowCustomElements')) {
+			return;
+		}
+
+		var timezone = "UTC";
+		var bgcolor  = this.getAttribute('bgcolor') || "#eeeeff";
+		var color    = this.getAttribute('color')   || "#865A5A";
+		var src      = this.getAttribute('src');
+
+		if(jstz) {
+			timezone = jstz.determine().name();
+		}
+
+		var frameSrc = "https://calendar.google.com/calendar/embed?showTitle=0&showNav=0&showPrint=0&showTabs=0&showCalendars=0&height=400&wkst=1&bgcolor=$BGCOLOR&src=$SRC&color=$COLOR&ctz=$TZ"
+			.replace("$SRC",     encodeURIComponent(src))
+			.replace("$TZ",      encodeURIComponent(timezone))
+			.replace("$BGCOLOR", encodeURIComponent(bgcolor))
+			.replace("$COLOR",   encodeURIComponent(color));
+
+		var t = thisDoc.getElementById('GoogleCalendarTemplate');
+		var clone = document.importNode(t.content, true);
+		var shadowRoot = this.createShadowRoot();
+		shadowRoot.appendChild(clone);
+
+		shadowRoot.querySelector("iframe").src = frameSrc;
+	};
+
+	Object.defineProperty(GoogleCalendarProto, "src",     {writable: true});
+	Object.defineProperty(GoogleCalendarProto, "bgcolor", {writable: true});
+
+	var GoogleCalendar = document.registerElement('google-calendar', {prototype: GoogleCalendarProto});
+})((document._currentScript || document.currentScript).ownerDocument);
+</script>
