@@ -113,13 +113,22 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 		constructor(peerOptions, networkDataCallback) {
 			this.networkDataCallback		= networkDataCallback;
 			this.peerOptions				= peerOptions;
+			this.verbose					= false;
+			this.reset();
+		}
+
+		reset() {
+			if(this.peer) {
+				this.peer.destroy();
+				this.peer = null;
+			}
 			this.joinInitiated				= false;
 			this.isConnected				= false;
 			this.connections				= {};
 			this.isMaster					= false;
+			this.masterId                   = null;
 			this.myId						= null;
-			this.verbose					= false;
-
+			this.postJoinCallback			= null;
 			this.setStatus('offline');
 		}
 
@@ -144,6 +153,8 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 			}
 
 			var id = "retroweb_" + networkId;
+			this.networkId = networkId;
+			this.masterId  = id;
 			this.peer = new Peer(id, this.peerOptions);
 			this.peer.on('error', errorFunc);
 			this.peer.on('open', function(id) {
@@ -153,6 +164,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 				me.peer.on('connection', function(conn) {me.processPeerConnection(conn);});
 				me.isConnected = true;
 				me.isMaster = true;
+				if(me.postJoinCallback) {
+					me.postJoinCallback();
+				}
 			});
 		}
 
@@ -180,6 +194,17 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 			});
 		}
 
+		/* If the master drops out, the first member in the peers list takes over as a new master.
+		 * To do so, the member destroys his Peer object, reconnects as a master, and re-establishes
+		 * connections to all peers in the peer list.
+		*/
+		reconnectAsMaster() {
+			var peers = Object.getOwnPropertyNames(this.connections);
+			this.reset();
+			this.postJoinCallback = this.connectToPeers.bind(this, peers);
+			this.joinNetwork(this.networkId);
+		}
+
 		processPeerConnection(newConnection) {
 			var peer = newConnection.peer;
 			if(this.connections[peer]) {
@@ -202,6 +227,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 		connectionClosed(peer) {
 			console.log("Connection closed:", peer);
 			delete this.connections[peer];
+			console.log("Master:", this.masterId, "This:", this.myId, "First peer:", this.peerList[0]);
+			if(peer == this.masterId && this.myId == this.peerList[0]) {
+				console.log("Master closed connection. Promoting myself to master");
+				this.reconnectAsMaster();
+			}
 		}
 
 		sendPeerList() {
@@ -220,16 +250,28 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 			}
 		}
 
+		connectToPeers(peerList, filterFunc) {
+			for(var i = 0; i < peerList.length; i++) {
+				var peer = peerList[i];
+				if(!this.connections[peer] && peer != this.myId && (filterFunc ? filterFunc(peer) : true)) {
+					console.log("Connecting to new peer", peer);
+					this.processPeerConnection(this.peer.connect(peer));
+				}
+			}
+		}
+
 		receiveNetworkData(peer, data) {
 			if(data.hasOwnProperty("peerList")) {
 				console.log("Receiving updated peer list", data.peerList);
-				for(var i = 0; i < data.peerList.length; i++) {
-					var peer = data.peerList[i];
-					if(!this.connections[peer] && (this.myId > peer)) {
-						console.log("Connecting to new peer", peer);
-						this.processPeerConnection(this.peer.connect(peer));
-					}
+				this.peerList = data.peerList;
+				/* All peers will receive the peerList updates. To avoid two peers from
+				 * trying to make redundant connections to each other, we impose a rule
+				 * where only a peer with the higher ID connects to the peer with the
+				 * lower ID */
+				function connectionSieve(peer) {
+					return this.myId > peer;
 				}
+				this.connectToPeers(this.peerList, connectionSieve.bind(this));
 			} else {
 				this.networkDataCallback(peer, data);
 			}
