@@ -60,6 +60,15 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 			background-repeat:		no-repeat;
 			background-size:		100%;
 		}
+
+		#byline {
+			display:				none;
+			position:				fixed;
+			bottom:					5px;
+			right:					5px;
+			background:				rgba(255,255,255,0.8);
+			padding:				2px;
+		}
 	</style>
 	<style id="skin-resources">
 		/* These styles will be replaced by EmulatorSkinProto.load */
@@ -76,6 +85,9 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 		<div class="sidebar">
 			<content select="#sidebar"></content>
 		</div>
+	</div>
+	<div id="byline">
+		Photo: <span></span>
 	</div>
 </template>
 
@@ -135,6 +147,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 				if(typeof retroWebComponentsPath !== 'undefined') {
 					styles = styles.replace(/\$RETROWEB_COMPONENTS_PATH/g, retroWebComponentsPath);
 				}
+				var credits = styles.match(new RegExp("Credit: (.*)\s*\\*/$", 'm'));
+				if(credits) {
+					me.shadowRoot.querySelector("#byline").style.display = "block";
+					me.shadowRoot.querySelector("#byline SPAN").innerHTML = credits[1];
+				}
 				me.shadowRoot.querySelector("#skin-resources").innerHTML = styles;
 			}
 		};
@@ -142,11 +159,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 			console.log("Unable to load the skin " + skinPath);
 		};
 		request.send();
-	};
+	}
 
 	EmulatorSkinProto.getNames = function() {
 		return skinLibrary;
-	};
+	}
 
 	Object.defineProperty(EmulatorSkinProto, "name",  {writable: true});
 	Object.defineProperty(EmulatorSkinProto, "flush", {writable: true});
