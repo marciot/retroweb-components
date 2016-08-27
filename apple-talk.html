@@ -38,7 +38,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 			display:			none;
 		}
 
-		#offline label {
+		#connected label, #roomStatus {
 			font-weight:		bold;
 		}
 
@@ -55,15 +55,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 	</style>
 	<div id="network">
 		<div id="offline" class="mode">
-			<h1>Choose where to start:</h1>
-			<ol>
-				<li>The lobby is a good place to chat or find players for games
-				<li>Use a private room for playing games
-				<p>
-					<label>Start in <input type="text" id="roomName" value="Lobby" placeholder="Enter room's codeword here" disabled=disabled></label>
-					<label><input type="checkbox" id="privateRoom">Join private room</label>
-				</p>
-			</ol>
 			<h1>Steps to start networking:</h1>
 			<ol>
 				<li>Boot the computer using a boot disk icon.
@@ -78,19 +69,20 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 			<h1>Cannot join the network (<span id="errorType"></span>)</h1>
 		</div>
 		<div id="connected" class="mode">
-			<h1>Connected to the network. Now...</h1>
+			<h1>Connected to the network. You may now...</h1>
 			<ol>
-				<li>If you are in the Lobby...
+				<li>Use "NetChat" from the <span class="apple"></span> menu to find and chat with others.
+				<li>For games, a private room may improve performance:
 					<ul>
-						<li>Use "NetChat" from the <span class="apple"></span> menu to find others.
-						<li>To play games, agree on a codeword, then <a href="javascript:window.location.href=window.location.href">reload the page</a> and join the private room with the codeword.
-					</ul>
-				<li>If in a private room...
-					<ul>
-						<li>Launch whatever game you have agreed upon.
-						<li>To return to the lobby, <a href="javascript:window.location.href=window.location.href">reload the page</a>.
+						<li>All players agree on a codeword.
+						<li>Each player enters the codeword below and clicks "Go".
 					</ul>
 			</ol>
+			<p id="roomStatus">You are in the lobby.</p>
+			<p>
+				<label>Join Private Room: <input type="text" id="privateRoomName" placeholder="Enter room's codeword here"></label>
+				<button id="switchToPrivateRoom">Go</button>
+			</p>
 		</div>
 	</div>
 </template>
@@ -205,6 +197,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 			this.joinNetwork(this.networkId);
 		}
 
+		reconnectToNetwork(networkId) {
+			this.reset();
+			this.joinNetwork(networkId);
+		}
+
 		processPeerConnection(newConnection) {
 			var peer = newConnection.peer;
 			if(this.connections[peer]) {
@@ -227,7 +224,6 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 		connectionClosed(peer) {
 			console.log("Connection closed:", peer);
 			delete this.connections[peer];
-			console.log("Master:", this.masterId, "This:", this.myId, "First peer:", this.peerList[0]);
 			if(peer == this.masterId && this.myId == this.peerList[0]) {
 				console.log("Master closed connection. Promoting myself to master");
 				this.reconnectAsMaster();
@@ -475,6 +471,11 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 		setNetworkId(networkId) {
 			this.networkId = networkId;
 		}
+		
+		reconnectToNetwork(networkId) {
+			this.networkId = networkId;
+			this.network.reconnectToNetwork(networkId);
+		}
 
 		_e8530_poll_sdlc_packet_js(buffPtr, buffSize) {
 			var frame = this.messageQueue.shift();
@@ -658,25 +659,23 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 			return hashFnv32a(nameHash.replace(/[^0-9a-zA-Z]/g,'').toLowerCase(), true);
 		}
 
-		function changeNetworkId() {
-			var room = this.shadowRoot.getElementById("roomName");
-			var hash = getRoomHash(room.value);
-			this.atIfce.setNetworkId(hash);
+		this.atIfce.setNetworkId(getRoomHash("Lobby"));
+
+		function gotoPrivateRoom() {
+			var btn  = this.shadowRoot.getElementById("switchToPrivateRoom");
+			var room = this.shadowRoot.getElementById("privateRoomName");
+			var info = this.shadowRoot.getElementById("roomStatus");
+			var hash = getRoomHash(room.value || "Lobby");
+			this.atIfce.reconnectToNetwork(hash);
+			if(hash == "1c5a0ed3") {
+				info.innerHTML = "You are in the lobby.";
+			} else {
+				info.innerHTML = "You are in a private room. The codeword is &quot;" + room.value + "&quot;";
+			}
+			room.value = "";
 		}
 
-		function togglePrivateRoom() {
-			var room = this.shadowRoot.getElementById("roomName");
-			if(this.shadowRoot.getElementById("privateRoom").checked) {
-				room.removeAttribute("disabled");
-				room.removeAttribute("value");
-			} else {
-				room.setAttribute("disabled", "disabled");
-				room.setAttribute("value", "Lobby");
-			}
-		}
-		changeNetworkId.call(this);
-		this.shadowRoot.getElementById("privateRoom").addEventListener("click", togglePrivateRoom.bind(this));
-		this.shadowRoot.getElementById("roomName").addEventListener("change",   changeNetworkId.bind(this));
+		this.shadowRoot.getElementById("switchToPrivateRoom").addEventListener("click", gotoPrivateRoom.bind(this));
 	};
 
 	var AppleTalk = document.registerElement('apple-talk', {prototype: AppleTalkProto});
