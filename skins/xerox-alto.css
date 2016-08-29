@@ -1,0 +1,28 @@
+/* See "macplus.css" for documentation */
+
+.background {
+	background-image:	url('$RETROWEB_COMPONENTS_PATH/skins/xerox-alto.jpg');
+	width:				970px;
+	height:				1874px;
+}
+
+/* Credit: <a href="http://www.listoid.com/list/135">listoid</a> */
+
+.flush-right .background {
+	margin-right:		-180px;
+}
+
+.screen-position-and-size {
+	left:				327px;
+	top:				110px;
+	width:				303px;
+	height:				404px;
+}
+
+.sidebar {
+	margin-right:		800px;
+}
+
+.flush-right .sidebar {
+	margin-right:		640px;
+}
